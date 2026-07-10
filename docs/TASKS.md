@@ -84,10 +84,11 @@ Models + migration for `room_inventory_baselines`, `baseline_items`, `sign_offs`
 **Depends on:** T1.1, T1.2, T1.3
 **Notes:** models in `backend/app/models/{room_inventory_baseline,baseline_item,sign_off}.py`. Reused `SignOffGroup` from `asset_type.py` rather than duplicating it. Verified all three composite UNIQUE constraints (`room_id+session_id`, `baseline_id+asset_type_id`, `baseline_id+student_id+sign_off_group`) landed correctly via `SHOW INDEX`, and upgrade → downgrade → upgrade runs clean. 11 tables now registered on `Base.metadata`.
 
-### T1.5 — Verification schema ⬜
+### T1.5 — Verification schema ✅
 
 Models + migration for `session_end_verifications`, `verification_items` (§6.13–6.14).
 **Depends on:** T1.4
+**Notes:** models in `backend/app/models/{session_end_verification,verification_item}.py`. `UNIQUE(baseline_id)` enforces the 1:1 relationship with `room_inventory_baselines`. `current_condition` (4 values, incl. `missing`) is a separate enum from `baseline_items.condition` (3 values) per spec. `flag` is system-computed, not user-supplied. Verified upgrade → downgrade → upgrade clean; 13 tables now registered.
 
 ### T1.6 — Condition report schema ⬜
 
