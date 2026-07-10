@@ -156,10 +156,11 @@ The hard dependency every other role needs data from. Implements BR-2.2 through 
 **Depends on:** T3.1
 **Notes:** `capacity` is server-derived from `hall_type` via new `room_capacity()` in `asset_rules.py` (BRD §6.1–6.4 occupancy), never entered by the Admin. **Bug found & fixed**: `UNIQUE(hall_id, room_number, corner_label)` doesn't catch duplicates when `corner_label` is NULL (true for every hall except Hall 7) since SQL treats NULL as distinct from NULL — added an explicit NULL-safe application-level duplicate check before insert. Verified end-to-end including this fix.
 
-### T3.3 — User account management API ⬜
+### T3.3 — User account management API ✅
 
 `POST /admin/users`, `GET /admin/users`, `PATCH /admin/users/{id}/deactivate`. Implements BR-1.3, BR-2.5.
 **Depends on:** T1.1, T2.3, T1.7
+**Notes:** request has no password field (§8.2), so — matching T2.4's pattern — a temp password is generated and returned once. Only porter/student roles creatable here (400 otherwise); deactivation is soft-disable, not delete. Verified end-to-end including actually logging in with the returned temp password and confirming a deactivated user can no longer log in.
 
 ### T3.4 — Porter-room assignment API ⬜
 
