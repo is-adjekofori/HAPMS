@@ -175,10 +175,11 @@ The hard dependency every other role needs data from. Implements BR-2.2 through 
 **Note:** the close-gate check depends on `room_inventory_baselines.locked`, so its full enforcement can only be _tested_ end-to-end after T8.3, but the endpoint itself can be built now against the schema.
 **Resolved ambiguity:** §6.7/§12 say exactly one session is active at a time (app-enforced), but §7.9 says creation doesn't auto-close others. Resolved as: `POST /admin/sessions` returns 409 if a session is already active, rather than auto-closing or allowing two actives — satisfies both statements since the "lock out" §7.9 warns about can't happen (the attempt just fails, forcing an explicit close first). `get_active_session()` in new `app/services/sessions.py` is the single lookup point T4.3/T5.1 will use. Verified the close-gate end-to-end by manually inserting an unlocked baseline (ahead of T4.3) and confirming it blocks closure with the correct `unverified_room_ids`, then unblocks once locked. **Only T3.6–T3.10 (Admin frontend) remain to finish Phase 3.**
 
-### T3.6 — Admin frontend: Halls page ⬜
+### T3.6 — Admin frontend: Halls page ✅
 
 List + create-hall UI.
 **Depends on:** T2.5, T3.1
+**Notes:** `app/admin/halls/page.tsx`. Added `lib/useApiResource.ts` (fetch-on-mount hook with loading/error/refetch) and `components/AdminNav.tsx` (grows one link per T3.7–T3.10 page) — both deliberate reusable infrastructure given how many remaining pages need the same pattern. Verified end-to-end with a real headless Chrome browser: nav, empty state, create (both category derivations), duplicate-name form error.
 
 ### T3.7 — Admin frontend: Rooms page ⬜
 
