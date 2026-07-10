@@ -6,9 +6,11 @@ from app.core.database import get_db
 from app.core.deps import require_role
 from app.core.security import generate_temporary_password, hash_password
 from app.models.hall import Hall
+from app.models.porter_room_assignment import PorterRoomAssignment
 from app.models.room import Room
 from app.models.user import User, UserRole
 from app.schemas.hall import HallCreate, HallResponse
+from app.schemas.porter_assignment import PorterAssignmentCreate, PorterAssignmentResponse
 from app.schemas.room import RoomCreate, RoomResponse
 from app.schemas.user import UserCreate, UserCreateResponse, UserResponse
 from app.services import audit
@@ -217,3 +219,46 @@ def deactivate_user(
     db.commit()
     db.refresh(user)
     return UserResponse.model_validate(user, from_attributes=True)
+
+
+@router.post("/porter-assignments", response_model=PorterAssignmentResponse)
+def create_porter_assignment(
+    payload: PorterAssignmentCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> PorterAssignmentResponse:
+    porter = db.get(User, payload.porter_id)
+    if porter is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Porter not found")
+    if porter.role != UserRole.PORTER:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="porter_id must reference a user with the porter role",
+        )
+
+    room = db.get(Room, payload.room_id)
+    if room is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+
+    assignment = PorterRoomAssignment(porter_id=porter.id, room_id=room.id)
+    db.add(assignment)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This porter is already assigned to this room",
+        ) from exc
+
+    audit.record(
+        db,
+        user_id=admin.id,
+        action="CREATE_PORTER_ASSIGNMENT",
+        entity_type="porter_room_assignment",
+        entity_id=assignment.id,
+        description=f"Assigned porter {porter.email} to room {room.id}",
+    )
+    db.commit()
+    db.refresh(assignment)
+    return PorterAssignmentResponse.model_validate(assignment, from_attributes=True)
