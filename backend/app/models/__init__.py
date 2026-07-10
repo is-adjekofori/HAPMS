@@ -6,9 +6,11 @@ from app.models.porter_room_assignment import PorterRoomAssignment
 from app.models.room import Room
 from app.models.room_inventory_baseline import RoomInventoryBaseline
 from app.models.session import HostelSession, SessionStatus
+from app.models.session_end_verification import SessionEndVerification
 from app.models.sign_off import SignOff, SignOffStatus
 from app.models.student_room_allocation import AllocationStatus, StudentRoomAllocation
 from app.models.user import User, UserRole
+from app.models.verification_item import VerificationCondition, VerificationFlag, VerificationItem
 
 __all__ = [
     "AllocationStatus",
@@ -22,6 +24,7 @@ __all__ = [
     "PorterRoomAssignment",
     "Room",
     "RoomInventoryBaseline",
+    "SessionEndVerification",
     "SessionStatus",
     "SignOff",
     "SignOffGroup",
@@ -29,4 +32,7 @@ __all__ = [
     "StudentRoomAllocation",
     "User",
     "UserRole",
+    "VerificationCondition",
+    "VerificationFlag",
+    "VerificationItem",
 ]
