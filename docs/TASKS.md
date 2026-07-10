@@ -108,15 +108,17 @@ Model + migration for `audit_logs` (§6.15), plus a reusable service function (e
 
 Implements BR-1.1 through BR-1.4, BR-6.1, `TECHNICAL_MVP.md §5`.
 
-### T2.1 — Password hashing & JWT utilities ⬜
+### T2.1 — Password hashing & JWT utilities ✅
 
 bcrypt hashing helpers; JWT encode/decode with `id`, `role`, expiry claims.
 **Depends on:** T1.1
+**Notes:** `backend/app/core/security.py` — `hash_password`/`verify_password` (bcrypt), `create_access_token`/`decode_access_token` (PyJWT, HS256, claims `sub`/`role`/`exp`). Fixed `.env.example`'s `JWT_SECRET_KEY` placeholder, which was too short and triggered PyJWT's key-length warning.
 
-### T2.2 — Login endpoint ⬜
+### T2.2 — Login endpoint ✅
 
 `POST /auth/login` — validates credentials, issues JWT + role + full_name. Implements BR-1.1.
 **Depends on:** T2.1
+**Notes:** `POST /api/auth/login` in `backend/app/routers/auth.py`; all routers now mount under `/api` per §8. Invalid email and wrong password both return a generic 401 (no user-enumeration leak). Verified end-to-end against the live DB.
 
 ### T2.3 — RBAC dependency ⬜
 
