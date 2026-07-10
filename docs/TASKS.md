@@ -47,10 +47,11 @@ Provision a local MySQL instance (or docker-compose service), configure SQLAlche
 **Deliverable check:** `alembic upgrade head` runs cleanly against a fresh database.
 **Notes:** `docker-compose.yml` (root) defines a MySQL 8.4 service; run with `docker compose up -d` or `podman compose up -d` (rootless podman needs `systemctl --user enable --now podman.socket` once). `app/core/database.py` holds the SQLAlchemy engine/session/`Base`. `alembic/env.py` reads `DATABASE_URL` from app settings and targets `Base.metadata` so Phase 1 models are picked up by autogenerate automatically. Verified `alembic upgrade head` runs clean and creates `alembic_version` in the DB.
 
-### T0.4 — Dev tooling baseline ⬜
+### T0.4 — Dev tooling baseline ✅
 
 Linting/formatting for backend (ruff/black or equivalent) and frontend (ESLint/Prettier), a root `.env.example`, and a top-level `README.md` describing how to run both apps locally.
 **Depends on:** T0.1, T0.2
+**Notes:** backend uses `ruff` for both lint and format (`uv run ruff check .` / `uv run ruff format .`); frontend adds Prettier + `eslint-config-prettier` (`npm run format` / `format:check`) alongside the existing ESLint setup. Root `.env.example` documents the docker-compose MySQL variables. Root `README.md` covers starting the DB, backend, and frontend locally.
 
 ---
 
