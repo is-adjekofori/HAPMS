@@ -4,11 +4,13 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import require_role
+from app.core.security import generate_temporary_password, hash_password
 from app.models.hall import Hall
 from app.models.room import Room
 from app.models.user import User, UserRole
 from app.schemas.hall import HallCreate, HallResponse
 from app.schemas.room import RoomCreate, RoomResponse
+from app.schemas.user import UserCreate, UserCreateResponse, UserResponse
 from app.services import audit
 from app.services.asset_rules import hall_category, room_capacity
 
@@ -130,3 +132,88 @@ def list_rooms(
 ) -> list[RoomResponse]:
     rooms = db.query(Room).order_by(Room.hall_id, Room.room_number).all()
     return [RoomResponse.model_validate(room, from_attributes=True) for room in rooms]
+
+
+@router.post("/users", response_model=UserCreateResponse)
+def create_user(
+    payload: UserCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> UserCreateResponse:
+    # BR-1.3/BR-2.5: only Porter and Student accounts are created this way;
+    # there is no public self-registration for any role, and Admin accounts
+    # are provisioned outside this endpoint.
+    if payload.role not in (UserRole.PORTER, UserRole.STUDENT):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only porter or student accounts can be created here",
+        )
+
+    temporary_password = generate_temporary_password()
+    user = User(
+        full_name=payload.full_name,
+        email=payload.email,
+        password_hash=hash_password(temporary_password),
+        role=payload.role,
+    )
+    db.add(user)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="A user with this email already exists"
+        ) from exc
+
+    audit.record(
+        db,
+        user_id=admin.id,
+        action="CREATE_USER",
+        entity_type="user",
+        entity_id=user.id,
+        description=f"Created {user.role.value} account for {user.email}",
+    )
+    db.commit()
+    db.refresh(user)
+    return UserCreateResponse(
+        id=user.id,
+        full_name=user.full_name,
+        email=user.email,
+        role=user.role,
+        is_active=user.is_active,
+        created_at=user.created_at,
+        temporary_password=temporary_password,
+    )
+
+
+@router.get("/users", response_model=list[UserResponse])
+def list_users(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> list[UserResponse]:
+    users = db.query(User).order_by(User.full_name).all()
+    return [UserResponse.model_validate(user, from_attributes=True) for user in users]
+
+
+@router.patch("/users/{user_id}/deactivate", response_model=UserResponse)
+def deactivate_user(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> UserResponse:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    user.is_active = False
+    audit.record(
+        db,
+        user_id=admin.id,
+        action="DEACTIVATE_USER",
+        entity_type="user",
+        entity_id=user.id,
+        description=f"Deactivated account for {user.email}",
+    )
+    db.commit()
+    db.refresh(user)
+    return UserResponse.model_validate(user, from_attributes=True)
