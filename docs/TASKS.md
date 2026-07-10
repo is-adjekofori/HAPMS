@@ -168,11 +168,12 @@ The hard dependency every other role needs data from. Implements BR-2.2 through 
 **Depends on:** T3.2, T3.3
 **Notes:** validates `porter_id` is an actual porter (400 if student/admin, 404 if missing) and `room_id` exists (404). `UNIQUE(porter_id, room_id)` has no nullable columns so the plain `IntegrityError` catch is sufficient (unlike T3.2's room case). Verified end-to-end against the live server.
 
-### T3.5 — Session lifecycle API ⬜
+### T3.5 — Session lifecycle API ✅
 
 `POST /admin/sessions`, `GET /admin/sessions`, `PATCH /admin/sessions/{id}/close` with the verification-complete gate (§7.9). Implements BR-7.1 through BR-7.5.
 **Depends on:** T1.3, T1.7
 **Note:** the close-gate check depends on `room_inventory_baselines.locked`, so its full enforcement can only be _tested_ end-to-end after T8.3, but the endpoint itself can be built now against the schema.
+**Resolved ambiguity:** §6.7/§12 say exactly one session is active at a time (app-enforced), but §7.9 says creation doesn't auto-close others. Resolved as: `POST /admin/sessions` returns 409 if a session is already active, rather than auto-closing or allowing two actives — satisfies both statements since the "lock out" §7.9 warns about can't happen (the attempt just fails, forcing an explicit close first). `get_active_session()` in new `app/services/sessions.py` is the single lookup point T4.3/T5.1 will use. Verified the close-gate end-to-end by manually inserting an unlocked baseline (ahead of T4.3) and confirming it blocks closure with the correct `unverified_room_ids`, then unblocks once locked. **Only T3.6–T3.10 (Admin frontend) remain to finish Phase 3.**
 
 ### T3.6 — Admin frontend: Halls page ⬜
 
