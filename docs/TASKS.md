@@ -40,11 +40,12 @@ Initialize the Next.js (App Router) + Tailwind project per `TECHNICAL_MVP.md §4
 **Deliverable check:** `npm run dev` serves a blank styled page.
 **Notes:** built in `frontend/` via `create-next-app` (TypeScript, Tailwind v4, App Router, ESLint). `lib/` and `components/` are intentionally left to be populated when Phase 2 (auth) and Phase 3 (admin UI) add their first real files, since empty dirs aren't meaningful scaffolding on their own.
 
-### T0.3 — MySQL database & connection ⬜
+### T0.3 — MySQL database & connection ✅
 
 Provision a local MySQL instance (or docker-compose service), configure SQLAlchemy engine/session in `app/core/`, and set up a migration tool (Alembic). Confirm the backend can connect and run an empty migration.
 **Depends on:** T0.1
 **Deliverable check:** `alembic upgrade head` runs cleanly against a fresh database.
+**Notes:** `docker-compose.yml` (root) defines a MySQL 8.4 service; run with `docker compose up -d` or `podman compose up -d` (rootless podman needs `systemctl --user enable --now podman.socket` once). `app/core/database.py` holds the SQLAlchemy engine/session/`Base`. `alembic/env.py` reads `DATABASE_URL` from app settings and targets `Base.metadata` so Phase 1 models are picked up by autogenerate automatically. Verified `alembic upgrade head` runs clean and creates `alembic_version` in the DB.
 
 ### T0.4 — Dev tooling baseline ⬜
 
