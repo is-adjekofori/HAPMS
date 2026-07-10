@@ -132,10 +132,11 @@ bcrypt hashing helpers; JWT encode/decode with `id`, `role`, expiry claims.
 **Depends on:** T2.3
 **Notes:** `POST /api/auth/reset-password/{user_id}` in `auth.py`; temp password via `secrets.token_urlsafe`, writes an `audit_logs` entry. Verified end-to-end: non-admin → 403, unauthenticated → 401, unknown user → 404, old password stops working, new temp password logs in successfully, audit entry recorded correctly.
 
-### T2.5 — Frontend auth flow ⬜
+### T2.5 — Frontend auth flow ✅
 
 Login page, token storage (memory/cookie), API client wrapper that attaches the Bearer token and centralizes error handling, and a `RoleGuard` component/route wrapper. Implements BR-1.2 (role-based redirect).
 **Depends on:** T0.2, T2.2
+**Notes:** `lib/auth.ts` (localStorage token + client-side role decode), `lib/api.ts` (`apiFetch` wrapper + `ApiError`), `app/login/page.tsx`, `components/RoleGuard.tsx`, `components/DashboardShell.tsx` + placeholder `/admin`, `/porter`, `/student` pages (fleshed out in Phases 3-5). Verified the full flow end-to-end with a real headless Chrome browser against the live backend — all 7 checks (unauth redirect, valid login, token storage, wrong-role redirect, wrong-password error, logout) passed. **Phase 2 (Auth & RBAC) complete.**
 
 ---
 
