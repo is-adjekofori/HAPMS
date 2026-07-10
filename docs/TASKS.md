@@ -72,9 +72,10 @@ Models + migration for `asset_types`, `hall_asset_rules` (§6.5–6.6), plus the
 **Deliverable check:** seed script is idempotent (safe to re-run) and produces the exact rows in §9.
 **Notes:** models in `backend/app/models/{asset_type,hall_asset_rule}.py`; seed data/logic in `backend/app/seed/asset_reference.py`, runnable via `uv run python -m app.seed.run` (`app/seed/run.py`). Verified 8 asset_types + 21 hall_asset_rules rows land exactly as specified, and re-running the seed does not duplicate rows (upsert by natural key). Applied the same MySQL downgrade-ordering fix as T1.1.
 
-### T1.3 — Session & allocation schema ⬜
+### T1.3 — Session & allocation schema ✅
 
 Models + migration for `sessions`, `student_room_allocations` (§6.7–6.8). Implements BR-7.1, BR-5.1.
+**Notes:** session model in `backend/app/models/session.py`, named `HostelSession` (not `Session`) to avoid colliding with `sqlalchemy.orm.Session`; allocation model in `student_room_allocation.py`. Verified upgrade → downgrade → upgrade produces the exact columns/enums/constraints from the spec, including `UNIQUE(student_id, session_id)`.
 **Depends on:** T1.1
 
 ### T1.4 — Baseline & sign-off schema ⬜
