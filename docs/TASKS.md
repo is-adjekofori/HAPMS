@@ -144,10 +144,11 @@ Login page, token storage (memory/cookie), API client wrapper that attaches the 
 
 The hard dependency every other role needs data from. Implements BR-2.2 through BR-2.6, BR-7.1–BR-7.5.
 
-### T3.1 — Hall management API ⬜
+### T3.1 — Hall management API ✅
 
 `POST /admin/halls`, `GET /admin/halls`. Implements BR-2.2, BR-2.3 (category is derived from hall_type per §12).
 **Depends on:** T1.1, T2.3, T1.7
+**Notes:** `app/routers/admin.py`; category derivation lives in new `app/services/asset_rules.py` (will be extended by T4.2). Duplicate hall name → clean 409, not a raw IntegrityError. Verified end-to-end: category derivation correct for both Regular and Special hall_types, 409/401/422 cases, and audit log entries all confirmed against the live server.
 
 ### T3.2 — Room management API ⬜
 
