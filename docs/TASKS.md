@@ -90,9 +90,10 @@ Models + migration for `session_end_verifications`, `verification_items` (§6.13
 **Depends on:** T1.4
 **Notes:** models in `backend/app/models/{session_end_verification,verification_item}.py`. `UNIQUE(baseline_id)` enforces the 1:1 relationship with `room_inventory_baselines`. `current_condition` (4 values, incl. `missing`) is a separate enum from `baseline_items.condition` (3 values) per spec. `flag` is system-computed, not user-supplied. Verified upgrade → downgrade → upgrade clean; 13 tables now registered.
 
-### T1.6 — Condition report schema ⬜
+### T1.6 — Condition report schema ✅
 
 Model + migration for `condition_reports` (§6.12).
+**Notes:** model in `backend/app/models/condition_report.py`; `asset_type_id` nullable since a report may be general. Verified upgrade → downgrade → upgrade clean; 14 tables now registered.
 **Depends on:** T1.3
 
 ### T1.7 — Audit log schema + logging helper ⬜
