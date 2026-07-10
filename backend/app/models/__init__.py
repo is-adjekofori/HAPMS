@@ -1,5 +1,6 @@
 from app.models.asset_type import AssetType, SignOffGroup
 from app.models.baseline_item import AssetCondition, BaselineItem
+from app.models.condition_report import ConditionReport, ConditionReportStatus
 from app.models.hall import Hall, HallType
 from app.models.hall_asset_rule import HallAssetRule
 from app.models.porter_room_assignment import PorterRoomAssignment
@@ -17,6 +18,8 @@ __all__ = [
     "AssetCondition",
     "AssetType",
     "BaselineItem",
+    "ConditionReport",
+    "ConditionReportStatus",
     "Hall",
     "HallAssetRule",
     "HallType",
