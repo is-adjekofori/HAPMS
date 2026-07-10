@@ -162,10 +162,11 @@ The hard dependency every other role needs data from. Implements BR-2.2 through 
 **Depends on:** T1.1, T2.3, T1.7
 **Notes:** request has no password field (§8.2), so — matching T2.4's pattern — a temp password is generated and returned once. Only porter/student roles creatable here (400 otherwise); deactivation is soft-disable, not delete. Verified end-to-end including actually logging in with the returned temp password and confirming a deactivated user can no longer log in.
 
-### T3.4 — Porter-room assignment API ⬜
+### T3.4 — Porter-room assignment API ✅
 
 `POST /admin/porter-assignments`. Implements BR-2.6, and underpins BR-3.1.
 **Depends on:** T3.2, T3.3
+**Notes:** validates `porter_id` is an actual porter (400 if student/admin, 404 if missing) and `room_id` exists (404). `UNIQUE(porter_id, room_id)` has no nullable columns so the plain `IntegrityError` catch is sufficient (unlike T3.2's room case). Verified end-to-end against the live server.
 
 ### T3.5 — Session lifecycle API ⬜
 
