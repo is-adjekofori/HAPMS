@@ -17,6 +17,7 @@ dependencies = [
 
 [dependency-groups]
 dev = [
+    "httpx>=0.28.1",
     "ruff>=0.15.21",
 ]
 
@@ -33,4 +34,12 @@ known-first-party = ["app"]
 [tool.ruff.lint.flake8-bugbear]
 # FastAPI's Depends()/Query()/etc. in argument defaults is the idiomatic
 # pattern, not the mutable-default-argument bug B008 exists to catch.
-extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
+# require_role(...) is our own dependency factory (app/core/deps.py) used the
+# same way - Depends(require_role(UserRole.ADMIN)) - on every protected route.
+extend-immutable-calls = [
+    "fastapi.Depends",
+    "fastapi.Query",
+    "fastapi.Path",
+    "fastapi.Body",
+    "app.core.deps.require_role",
+]

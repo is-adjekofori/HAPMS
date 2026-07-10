@@ -1,3 +1,4 @@
+import secrets
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -27,3 +28,8 @@ def create_access_token(*, user_id: int, role: str) -> str:
 def decode_access_token(token: str) -> dict[str, Any]:
     settings = get_settings()
     return jwt.decode(token, settings.jwt_secret_key, algorithms=[JWT_ALGORITHM])
+
+
+def generate_temporary_password() -> str:
+    """Shown once to the Admin to relay manually (§5, §11 - no email delivery in this phase)."""
+    return secrets.token_urlsafe(9)

@@ -12,3 +12,7 @@ class LoginResponse(BaseModel):
     access_token: str
     role: UserRole
     full_name: str
+
+
+class ResetPasswordResponse(BaseModel):
+    temporary_password: str

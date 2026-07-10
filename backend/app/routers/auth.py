@@ -2,9 +2,16 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.security import create_access_token, verify_password
-from app.models.user import User
-from app.schemas.auth import LoginRequest, LoginResponse
+from app.core.deps import require_role
+from app.core.security import (
+    create_access_token,
+    generate_temporary_password,
+    hash_password,
+    verify_password,
+)
+from app.models.user import User, UserRole
+from app.schemas.auth import LoginRequest, LoginResponse, ResetPasswordResponse
+from app.services import audit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -24,3 +31,28 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse
 
     token = create_access_token(user_id=user.id, role=user.role.value)
     return LoginResponse(access_token=token, role=user.role, full_name=user.full_name)
+
+
+@router.post("/reset-password/{user_id}", response_model=ResetPasswordResponse)
+def reset_password(
+    user_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> ResetPasswordResponse:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    temporary_password = generate_temporary_password()
+    user.password_hash = hash_password(temporary_password)
+    audit.record(
+        db,
+        user_id=admin.id,
+        action="RESET_PASSWORD",
+        entity_type="user",
+        entity_id=user.id,
+        description=f"Password reset for {user.email} by {admin.email}",
+    )
+    db.commit()
+
+    return ResetPasswordResponse(temporary_password=temporary_password)
