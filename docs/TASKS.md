@@ -120,15 +120,17 @@ bcrypt hashing helpers; JWT encode/decode with `id`, `role`, expiry claims.
 **Depends on:** T2.1
 **Notes:** `POST /api/auth/login` in `backend/app/routers/auth.py`; all routers now mount under `/api` per §8. Invalid email and wrong password both return a generic 401 (no user-enumeration leak). Verified end-to-end against the live DB.
 
-### T2.3 — RBAC dependency ⬜
+### T2.3 — RBAC dependency ✅
 
 `require_role(...)` FastAPI dependency (and `get_current_user`) used to guard every subsequent route. Returns 403 on role mismatch. Implements BR-6.1.
 **Depends on:** T2.1
+**Notes:** `backend/app/core/deps.py`. `require_role(*roles)` is a dependency factory (`Depends(require_role(UserRole.ADMIN))`) — added `app.core.deps.require_role` to the Ruff bugbear immutable-calls allowlist so every future protected route doesn't need its own `noqa`. Verified via `TestClient`: no/garbage token → 401, wrong role → 403, valid token → 200 with correct user.
 
-### T2.4 — Admin-triggered password reset endpoint ⬜
+### T2.4 — Admin-triggered password reset endpoint ✅
 
 `POST /auth/reset-password/{user_id}` (Admin only) — generates and returns a temporary password. Implements BR-1.4 (simplified per §5).
 **Depends on:** T2.3
+**Notes:** `POST /api/auth/reset-password/{user_id}` in `auth.py`; temp password via `secrets.token_urlsafe`, writes an `audit_logs` entry. Verified end-to-end: non-admin → 403, unauthenticated → 401, unknown user → 404, old password stops working, new temp password logs in successfully, audit entry recorded correctly.
 
 ### T2.5 — Frontend auth flow ⬜
 
