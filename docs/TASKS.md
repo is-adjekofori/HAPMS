@@ -150,10 +150,11 @@ The hard dependency every other role needs data from. Implements BR-2.2 through 
 **Depends on:** T1.1, T2.3, T1.7
 **Notes:** `app/routers/admin.py`; category derivation lives in new `app/services/asset_rules.py` (will be extended by T4.2). Duplicate hall name → clean 409, not a raw IntegrityError. Verified end-to-end: category derivation correct for both Regular and Special hall_types, 409/401/422 cases, and audit log entries all confirmed against the live server.
 
-### T3.2 — Room management API ⬜
+### T3.2 — Room management API ✅
 
 `POST /admin/rooms`, `GET /admin/rooms`. Implements BR-2.2, BR-2.4 (asset applicability derived from hall_type, enforced later in T4.2).
 **Depends on:** T3.1
+**Notes:** `capacity` is server-derived from `hall_type` via new `room_capacity()` in `asset_rules.py` (BRD §6.1–6.4 occupancy), never entered by the Admin. **Bug found & fixed**: `UNIQUE(hall_id, room_number, corner_label)` doesn't catch duplicates when `corner_label` is NULL (true for every hall except Hall 7) since SQL treats NULL as distinct from NULL — added an explicit NULL-safe application-level duplicate check before insert. Verified end-to-end including this fix.
 
 ### T3.3 — User account management API ⬜
 
