@@ -65,11 +65,12 @@ SQLAlchemy models + migration for `users`, `halls`, `rooms`, `porter_room_assign
 **Depends on:** T0.3
 **Notes:** models in `backend/app/models/{user,hall,room,porter_room_assignment}.py`, registered via `app/models/__init__.py` and imported in `alembic/env.py` for autogenerate. Enum columns store lowercase values matching the spec exactly (fixed via `values_callable`, since SQLAlchemy's default is the Python member name). Fixed MySQL-specific downgrade ordering issue (index-before-FK-drop) in the generated migration. Verified upgrade → downgrade → upgrade all run clean against the live database.
 
-### T1.2 — Asset reference schema + seed script ⬜
+### T1.2 — Asset reference schema + seed script ✅
 
 Models + migration for `asset_types`, `hall_asset_rules` (§6.5–6.6), plus the seed script loading the exact data in `TECHNICAL_MVP.md §9.1–9.2` (all 4 hall types: regular, tetfund_danjuma, hall_6, hall_7).
 **Depends on:** T0.3
 **Deliverable check:** seed script is idempotent (safe to re-run) and produces the exact rows in §9.
+**Notes:** models in `backend/app/models/{asset_type,hall_asset_rule}.py`; seed data/logic in `backend/app/seed/asset_reference.py`, runnable via `uv run python -m app.seed.run` (`app/seed/run.py`). Verified 8 asset_types + 21 hall_asset_rules rows land exactly as specified, and re-running the seed does not duplicate rows (upsert by natural key). Applied the same MySQL downgrade-ordering fix as T1.1.
 
 ### T1.3 — Session & allocation schema ⬜
 
