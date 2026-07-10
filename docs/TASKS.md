@@ -33,11 +33,12 @@ Initialize the FastAPI project: `app/` layout per `TECHNICAL_MVP.md §4.2` (`mai
 **Deliverable check:** `uvicorn app.main:app` runs and `/health` returns 200.
 **Notes:** built in `backend/` with `uv` (`uv add`, `uv run`) as the package manager instead of pip/venv; config via `pydantic-settings` reading `.env` (see `backend/.env.example`).
 
-### T0.2 — Frontend project scaffold ⬜
+### T0.2 — Frontend project scaffold ✅
 
 Initialize the Next.js (App Router) + Tailwind project per `TECHNICAL_MVP.md §4.3` (`app/`, `lib/`, `components/`), base layout, and a placeholder home page.
 **Depends on:** —
 **Deliverable check:** `npm run dev` serves a blank styled page.
+**Notes:** built in `frontend/` via `create-next-app` (TypeScript, Tailwind v4, App Router, ESLint). `lib/` and `components/` are intentionally left to be populated when Phase 2 (auth) and Phase 3 (admin UI) add their first real files, since empty dirs aren't meaningful scaffolding on their own.
 
 ### T0.3 — MySQL database & connection ⬜
 
