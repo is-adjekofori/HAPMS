@@ -96,10 +96,11 @@ Model + migration for `condition_reports` (§6.12).
 **Notes:** model in `backend/app/models/condition_report.py`; `asset_type_id` nullable since a report may be general. Verified upgrade → downgrade → upgrade clean; 14 tables now registered.
 **Depends on:** T1.3
 
-### T1.7 — Audit log schema + logging helper ⬜
+### T1.7 — Audit log schema + logging helper ✅
 
 Model + migration for `audit_logs` (§6.15), plus a reusable service function (e.g. `services/audit.py: record(user, action, entity_type, entity_id, description)`) called by every mutating endpoint built in later phases. Implements BR-6.2, BR-2.9.
 **Depends on:** T1.1
+**Notes:** model in `backend/app/models/audit_log.py`; helper in `app/services/audit.py` (`record()`, does not commit — caller's transaction owns that so the audit entry lands atomically with the action). Verified it writes a real row end-to-end and upgrade → downgrade → upgrade is clean. **Phase 1 complete: all 15 tables from §6 now exist.**
 
 ---
 
