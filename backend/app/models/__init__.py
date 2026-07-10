@@ -1,4 +1,5 @@
 from app.models.asset_type import AssetType, SignOffGroup
+from app.models.audit_log import AuditLog
 from app.models.baseline_item import AssetCondition, BaselineItem
 from app.models.condition_report import ConditionReport, ConditionReportStatus
 from app.models.hall import Hall, HallType
@@ -17,6 +18,7 @@ __all__ = [
     "AllocationStatus",
     "AssetCondition",
     "AssetType",
+    "AuditLog",
     "BaselineItem",
     "ConditionReport",
     "ConditionReportStatus",
