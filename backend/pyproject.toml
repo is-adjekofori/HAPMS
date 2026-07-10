@@ -5,8 +5,11 @@ description = "Add your description here"
 requires-python = ">=3.12"
 dependencies = [
     "alembic>=1.18.5",
+    "bcrypt>=5.0.0",
+    "email-validator>=2.3.0",
     "fastapi>=0.139.0",
     "pydantic-settings>=2.14.2",
+    "pyjwt>=2.13.0",
     "pymysql>=1.2.0",
     "sqlalchemy>=2.0.51",
     "uvicorn[standard]>=0.51.0",
@@ -26,3 +29,8 @@ select = ["E", "F", "I", "UP", "B"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["app"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's Depends()/Query()/etc. in argument defaults is the idiomatic
+# pattern, not the mutable-default-argument bug B008 exists to catch.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Query", "fastapi.Path", "fastapi.Body"]
