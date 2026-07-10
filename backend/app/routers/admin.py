@@ -1,3 +1,5 @@
+from datetime import UTC, datetime
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -8,13 +10,17 @@ from app.core.security import generate_temporary_password, hash_password
 from app.models.hall import Hall
 from app.models.porter_room_assignment import PorterRoomAssignment
 from app.models.room import Room
+from app.models.room_inventory_baseline import RoomInventoryBaseline
+from app.models.session import HostelSession, SessionStatus
 from app.models.user import User, UserRole
 from app.schemas.hall import HallCreate, HallResponse
 from app.schemas.porter_assignment import PorterAssignmentCreate, PorterAssignmentResponse
 from app.schemas.room import RoomCreate, RoomResponse
+from app.schemas.session import SessionCreate, SessionResponse
 from app.schemas.user import UserCreate, UserCreateResponse, UserResponse
 from app.services import audit
 from app.services.asset_rules import hall_category, room_capacity
+from app.services.sessions import get_active_session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -262,3 +268,98 @@ def create_porter_assignment(
     db.commit()
     db.refresh(assignment)
     return PorterAssignmentResponse.model_validate(assignment, from_attributes=True)
+
+
+@router.post("/sessions", response_model=SessionResponse)
+def create_session(
+    payload: SessionCreate,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> SessionResponse:
+    # §6.7/§12: exactly one session is 'active' at a time, enforced here rather
+    # than by auto-closing the existing one - the Admin must explicitly close it
+    # first (PATCH .../close), so opening a new session never silently displaces
+    # or hides an in-progress one.
+    if get_active_session(db) is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An active session already exists; close it before starting a new one",
+        )
+
+    session = HostelSession(name=payload.name, started_at=payload.started_at)
+    db.add(session)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="A session with this name already exists"
+        ) from exc
+
+    audit.record(
+        db,
+        user_id=admin.id,
+        action="CREATE_SESSION",
+        entity_type="session",
+        entity_id=session.id,
+        description=f"Created session {session.name}",
+    )
+    db.commit()
+    db.refresh(session)
+    return SessionResponse.model_validate(session, from_attributes=True)
+
+
+@router.get("/sessions", response_model=list[SessionResponse])
+def list_sessions(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> list[SessionResponse]:
+    sessions = db.query(HostelSession).order_by(HostelSession.started_at.desc()).all()
+    return [SessionResponse.model_validate(s, from_attributes=True) for s in sessions]
+
+
+@router.patch("/sessions/{session_id}/close", response_model=SessionResponse)
+def close_session(
+    session_id: int,
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> SessionResponse:
+    session = db.get(HostelSession, session_id)
+    if session is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Session not found")
+    if session.status == SessionStatus.CLOSED:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="Session is already closed"
+        )
+
+    unverified_room_ids = [
+        room_id
+        for (room_id,) in db.query(RoomInventoryBaseline.room_id)
+        .filter(
+            RoomInventoryBaseline.session_id == session_id,
+            RoomInventoryBaseline.locked.is_(False),
+        )
+        .all()
+    ]
+    if unverified_room_ids:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "message": "Every room's baseline must be verified before closing this session",
+                "unverified_room_ids": unverified_room_ids,
+            },
+        )
+
+    session.status = SessionStatus.CLOSED
+    session.closed_at = datetime.now(UTC)
+    audit.record(
+        db,
+        user_id=admin.id,
+        action="CLOSE_SESSION",
+        entity_type="session",
+        entity_id=session.id,
+        description=f"Closed session {session.name}",
+    )
+    db.commit()
+    db.refresh(session)
+    return SessionResponse.model_validate(session, from_attributes=True)
