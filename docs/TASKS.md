@@ -26,11 +26,12 @@ This is the working execution plan for the Hostel Asset and Property Management 
 
 Nothing else can start until these exist.
 
-### T0.1 — Backend project scaffold ⬜
+### T0.1 — Backend project scaffold ✅
 
 Initialize the FastAPI project: `app/` layout per `TECHNICAL_MVP.md §4.2` (`main.py`, `core/`, `models/`, `schemas/`, `routers/`, `services/`, `seed/`), dependency management (e.g. `pyproject.toml`/`requirements.txt`), `.env`-based config loading, and a working `/health` endpoint.
 **Depends on:** —
 **Deliverable check:** `uvicorn app.main:app` runs and `/health` returns 200.
+**Notes:** built in `backend/` with `uv` (`uv add`, `uv run`) as the package manager instead of pip/venv; config via `pydantic-settings` reading `.env` (see `backend/.env.example`).
 
 ### T0.2 — Frontend project scaffold ⬜
 
