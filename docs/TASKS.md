@@ -78,10 +78,11 @@ Models + migration for `sessions`, `student_room_allocations` (§6.7–6.8). Imp
 **Notes:** session model in `backend/app/models/session.py`, named `HostelSession` (not `Session`) to avoid colliding with `sqlalchemy.orm.Session`; allocation model in `student_room_allocation.py`. Verified upgrade → downgrade → upgrade produces the exact columns/enums/constraints from the spec, including `UNIQUE(student_id, session_id)`.
 **Depends on:** T1.1
 
-### T1.4 — Baseline & sign-off schema ⬜
+### T1.4 — Baseline & sign-off schema ✅
 
 Models + migration for `room_inventory_baselines`, `baseline_items`, `sign_offs` (§6.9–6.11), including the UNIQUE constraints that back BR-7.4 (one open baseline per room/session) and BR-4.3 (independent corner/shared sign-off rows).
 **Depends on:** T1.1, T1.2, T1.3
+**Notes:** models in `backend/app/models/{room_inventory_baseline,baseline_item,sign_off}.py`. Reused `SignOffGroup` from `asset_type.py` rather than duplicating it. Verified all three composite UNIQUE constraints (`room_id+session_id`, `baseline_id+asset_type_id`, `baseline_id+student_id+sign_off_group`) landed correctly via `SHOW INDEX`, and upgrade → downgrade → upgrade runs clean. 11 tables now registered on `Base.metadata`.
 
 ### T1.5 — Verification schema ⬜
 
