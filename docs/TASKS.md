@@ -59,10 +59,11 @@ Linting/formatting for backend (ruff/black or equivalent) and frontend (ESLint/P
 
 Implements the schema from `TECHNICAL_MVP.md §6`. Each task is model(s) + Alembic migration for one functional cluster of tables.
 
-### T1.1 — Identity & access schema ⬜
+### T1.1 — Identity & access schema ✅
 
 SQLAlchemy models + migration for `users`, `halls`, `rooms`, `porter_room_assignments` (§6.1–6.4).
 **Depends on:** T0.3
+**Notes:** models in `backend/app/models/{user,hall,room,porter_room_assignment}.py`, registered via `app/models/__init__.py` and imported in `alembic/env.py` for autogenerate. Enum columns store lowercase values matching the spec exactly (fixed via `values_callable`, since SQLAlchemy's default is the Python member name). Fixed MySQL-specific downgrade ordering issue (index-before-FK-drop) in the generated migration. Verified upgrade → downgrade → upgrade all run clean against the live database.
 
 ### T1.2 — Asset reference schema + seed script ⬜
 
