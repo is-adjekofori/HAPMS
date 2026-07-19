@@ -211,35 +211,41 @@ Create a session, view open/closed sessions, close a session (surfacing the unve
 
 The first half of the "core loop." Implements BR-3.1 through BR-3.3.
 
-### T4.1 — Assigned rooms endpoint ⬜
+### T4.1 — Assigned rooms endpoint ✅
 
 `GET /porter/rooms` — filtered to `porter_room_assignments` for the logged-in Porter (§7.6). Implements BR-3.1.
 **Depends on:** T1.4, T2.3, T3.4
+**Notes:** `app/routers/porter.py:list_assigned_rooms`. Returns only the caller's assigned rooms with hall name, capacity, and active-session baseline status (`has_baseline`, `baseline_id`, `baseline_locked`, `shared_confirmed` per §7.8). Verified with curl: porter sees only their room, a porter with no assignments gets `[]`, an admin hitting the route gets 403.
 
-### T4.2 — Room asset-types endpoint ⬜
+### T4.2 — Room asset-types endpoint ✅
 
 `GET /porter/rooms/{room_id}/asset-types` — category-filtered valid asset types with default quantities, per §7.1. Implements BR-2.4, BR-3.3.
 **Depends on:** T1.2, T4.1
+**Notes:** `app/routers/porter.py:room_asset_types` + `app/services/baselines.py:valid_asset_rules_for_room`. Returns the hall_type's `hall_asset_rules` joined to asset types (id, code, display_name, sign_off_group, default_quantity, notes), ordered by asset id. Scoping enforced via a shared `_assigned_room_or_403` helper (404 missing, 403 not-yours). Verified: Hall 7 returns exactly its 6 valid types with correct defaults; unassigned room 403; missing room 404.
 
-### T4.3 — Create baseline endpoint ⬜
+### T4.3 — Create baseline endpoint ✅
 
 `POST /porter/rooms/{room_id}/baseline` — creates baseline + items; returns 409 with a friendly message if an open baseline already exists for the room's active session (§7.9, BR-7.4). Writes an audit log entry. Implements BR-3.2.
 **Depends on:** T1.4, T4.2, T1.7, T3.5
+**Notes:** `app/routers/porter.py:create_baseline`. Validates every item against the hall's valid asset types (400), rejects duplicate asset types in the payload (400) and empty payloads (422), requires an active session (409), and blocks a second open baseline (409 friendly pre-check + UNIQUE backstop). Writes a `CREATE_BASELINE` audit entry in the same transaction. Verified with curl: create round-trip, duplicate 409, invalid/duplicate item 400, empty 422, and `has_baseline` reflected on `GET /porter/rooms`.
 
-### T4.4 — Chair-to-table auto-match logic ⬜
+### T4.4 — Chair-to-table auto-match logic ✅
 
 Backend default-suggestion behavior (or frontend convenience) so chair quantity defaults to table quantity when set, per §7.2. Remains editable.
 **Depends on:** T4.3
+**Notes:** Implemented as the UI convenience the spec calls for, inside the baseline form (`app/porter/rooms/[roomId]/baseline/page.tsx`): changing the Table quantity sets the Chair quantity to match, and the Chair stays editable afterward. E2E-verified (table→3 sets chair→3, then chair overridden to 2) and confirmed persisted (chair stored as 2).
 
-### T4.5 — Porter frontend: My Assigned Rooms page ⬜
+### T4.5 — Porter frontend: My Assigned Rooms page ✅
 
 List of assigned rooms with baseline/verification status indicators (placeholder for pending flags, filled in during Phase 10).
 **Depends on:** T2.5, T4.1
+**Notes:** `app/porter/page.tsx`. The Porter dashboard lists assigned rooms with hall/room/corner/capacity and a baseline status (Not recorded / Recorded / Locked); rooms without a baseline link to the entry form. Verified end-to-end in real headless Chrome.
 
-### T4.6 — Porter frontend: Baseline Entry Form ⬜
+### T4.6 — Porter frontend: Baseline Entry Form ✅
 
 Category-filtered form (asset type, quantity, condition) with chair-auto-match (T4.4), submitting to T4.3.
 **Depends on:** T4.5, T4.3, T4.4
+**Notes:** `app/porter/rooms/[roomId]/baseline/page.tsx`. Renders the asset types from T4.2 grouped into Corner and Shared, pre-filled with default quantities (untouched rows fall back to their default at render/submit — no state seeding in an effect); submits all items and returns to the room list, surfacing the duplicate-baseline 409. Verified end-to-end (13 checks) including a DB check that persisted values matched the UI. **Phase 4 (Porter baseline entry — the first half of the core loop) is complete.**
 
 ---
 
