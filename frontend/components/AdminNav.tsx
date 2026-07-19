@@ -4,7 +4,10 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 // Grows as each Admin page lands (T3.6-T3.10); only add a link once its page exists.
-const LINKS = [{ href: "/admin/halls", label: "Halls" }];
+const LINKS = [
+  { href: "/admin/halls", label: "Halls" },
+  { href: "/admin/rooms", label: "Rooms" },
+];
 
 export function AdminNav() {
   const pathname = usePathname();
