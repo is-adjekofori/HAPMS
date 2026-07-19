@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.core.config import get_settings
-from app.routers import admin, auth
+from app.routers import admin, auth, porter
 
 settings = get_settings()
 
@@ -19,6 +19,7 @@ app.add_middleware(
 # All endpoints are prefixed with /api (TECHNICAL_MVP.md §8), except /health.
 app.include_router(auth.router, prefix="/api")
 app.include_router(admin.router, prefix="/api")
+app.include_router(porter.router, prefix="/api")
 
 
 @app.get("/health")
