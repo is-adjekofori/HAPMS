@@ -187,20 +187,23 @@ List + create-room UI, scoped to a hall.
 **Depends on:** T2.5, T3.2
 **Notes:** `app/admin/rooms/page.tsx`. List + create with a hall `<select>`, room number, optional corner label (Hall 7); capacity shown per row (derived server-side); hall name joined via a `hallsById` map. Added the Rooms link to `AdminNav`. Verified end-to-end in a real headless Chrome: empty state, Regular-hall capacity 8, Hall 7 capacity 2 with corner label, no-hall client validation, and duplicate-room 409 surfaced in the UI.
 
-### T3.8 — Admin frontend: Users page ⬜
+### T3.8 — Admin frontend: Users page ✅
 
 List + create Porter/Student accounts, deactivate action, trigger password reset (T2.4).
 **Depends on:** T2.5, T3.3, T2.4
+**Notes:** `app/admin/users/page.tsx`. List + create (role select limited to Porter/Student); the one-time temporary password from create *and* from reset is shown in a dismissable banner (no email delivery this phase). Per-row Reset-password and Deactivate actions; Deactivate hidden for admin/inactive rows. Verified end-to-end in a real headless Chrome: create shows the temp-password banner and the row, reset re-surfaces a new temp password, deactivate flips status to Inactive.
 
-### T3.9 — Admin frontend: Porter assignment UI ⬜
+### T3.9 — Admin frontend: Porter assignment UI ✅
 
 Assign a Porter to one or more rooms.
 **Depends on:** T2.5, T3.4
+**Notes:** `app/admin/porter-assignments/page.tsx`. Pick an active porter + multi-select rooms (checkbox list with hall/room/corner labels); the single-room API is called once per selected room so each room reports its own success/failure. Verified end-to-end: successful assignment shows ✓, and re-assigning the same porter+room shows ✗ with the 409 "already assigned" message.
 
-### T3.10 — Admin frontend: Sessions page ⬜
+### T3.10 — Admin frontend: Sessions page ✅
 
 Create a session, view open/closed sessions, close a session (surfacing the unverified-rooms list on 409).
 **Depends on:** T2.5, T3.5
+**Notes:** `app/admin/sessions/page.tsx`. Create (name + datetime-local, sent as UTC ISO), list active/closed, per-row Close. Extended `lib/api.ts` so `ApiError` carries the raw `detail` and `extractErrorMessage` handles object-shaped detail, letting the close-gate 409's message + `unverified_room_ids` reach the UI. Verified end-to-end: create shows Active, a second create is blocked (single-active-session 409), close succeeds when no baselines block it, and — with an unlocked baseline inserted (ahead of T4.3) — Close is blocked with the unverified room IDs shown and the session left Active. **Phase 3 (Admin console) is complete.**
 
 ---
 
