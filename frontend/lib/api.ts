@@ -7,6 +7,9 @@ export class ApiError extends Error {
   constructor(
     public status: number,
     message: string,
+    // Raw FastAPI `detail` payload, kept so callers can read structured error
+    // fields (e.g. the session-close 409's unverified_room_ids) when needed.
+    public detail?: unknown,
   ) {
     super(message);
     this.name = "ApiError";
@@ -24,8 +27,19 @@ function extractErrorMessage(body: unknown): string {
         )
         .join(", ");
     }
+    // Object detail (e.g. { message, unverified_room_ids }): surface message.
+    if (detail && typeof detail === "object" && "message" in detail) {
+      return String((detail as { message: unknown }).message);
+    }
   }
   return "Something went wrong. Please try again.";
+}
+
+function extractDetail(body: unknown): unknown {
+  if (body && typeof body === "object" && "detail" in body) {
+    return (body as { detail: unknown }).detail;
+  }
+  return undefined;
 }
 
 interface ApiFetchOptions extends Omit<RequestInit, "body"> {
@@ -62,7 +76,11 @@ export async function apiFetch<T>(
   const data = isJson ? await response.json() : undefined;
 
   if (!response.ok) {
-    throw new ApiError(response.status, extractErrorMessage(data));
+    throw new ApiError(
+      response.status,
+      extractErrorMessage(data),
+      extractDetail(data),
+    );
   }
 
   return data as T;
