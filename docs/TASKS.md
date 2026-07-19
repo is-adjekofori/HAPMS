@@ -181,10 +181,11 @@ List + create-hall UI.
 **Depends on:** T2.5, T3.1
 **Notes:** `app/admin/halls/page.tsx`. Added `lib/useApiResource.ts` (fetch-on-mount hook with loading/error/refetch) and `components/AdminNav.tsx` (grows one link per T3.7–T3.10 page) — both deliberate reusable infrastructure given how many remaining pages need the same pattern. Verified end-to-end with a real headless Chrome browser: nav, empty state, create (both category derivations), duplicate-name form error.
 
-### T3.7 — Admin frontend: Rooms page ⬜
+### T3.7 — Admin frontend: Rooms page ✅
 
 List + create-room UI, scoped to a hall.
 **Depends on:** T2.5, T3.2
+**Notes:** `app/admin/rooms/page.tsx`. List + create with a hall `<select>`, room number, optional corner label (Hall 7); capacity shown per row (derived server-side); hall name joined via a `hallsById` map. Added the Rooms link to `AdminNav`. Verified end-to-end in a real headless Chrome: empty state, Regular-hall capacity 8, Hall 7 capacity 2 with corner label, no-hall client validation, and duplicate-room 409 surfaced in the UI.
 
 ### T3.8 — Admin frontend: Users page ⬜
 
