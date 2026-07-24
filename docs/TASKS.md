@@ -301,12 +301,12 @@ Two independent sign-off actions (corner, shared) on the My Room page, each able
 **Depends on:** T5.4, T6.1
 **Notes:** `SignOffPanel` in `frontend/app/student/page.tsx`, rendered once per group under its item table. Confirm is one click; Dispute reveals a required textarea (blocked client-side with an inline message if empty) before submitting. Once signed, the panel becomes read-only (status + comment), matching the "independent, one-shot" sign-off model — no edit/undo in this phase. Verified end-to-end in real Chrome across two students on the same room (independent corner sign-off per BR-4.14): 11/11 checks passed, including the empty-dispute-comment guard and persistence across reload.
 
-### T6.4 — Porter/Admin visibility of dispute comments ⬜
+### T6.4 — Porter/Admin visibility of dispute comments ✅
 
 Extend `GET /porter/baselines/{id}` (built in T8.1) and the Admin audit log view (T9.4) to surface `sign_offs.comment`. Implements BR-4.10.
 **Depends on:** T6.1, T8.1, T9.4
 **Note:** listed here for traceability; actual implementation happens alongside T8.1/T9.4 once those exist — mark Done only when both surfaces show dispute comments.
-**Progress:** Porter side done as of T8.1 — `GET /porter/baselines/{id}` returns `corner_sign_offs`/`shared_sign_offs` with `student_name`, `status`, and `comment`, verified via curl showing a contested shared sign-off's comment. Still waiting on T9.4 (Admin audit log) before this can be marked Done.
+**Notes:** Porter side landed with T8.1. Admin side landed with T9.4: `create_signoff` (T6.1, in `app/routers/student.py`) now embeds the comment directly into the audit-log description (e.g. `Contested sign-off (shared) for baseline 11 — "Fan makes a loud noise"`), which required widening `audit_logs.description` from VARCHAR(255) to TEXT (migration `5058c52a1040`) so a 500-char dispute comment can never get silently truncated. Verified via curl: `GET /admin/audit-log` shows the full comment text in the entry.
 
 ---
 
@@ -380,40 +380,47 @@ Shows baseline vs. current-state entry form, submits to T8.3, and renders the re
 
 Implements BR-2.1, BR-2.7, BR-2.9.
 
-### T9.1 — Admin dashboard summary endpoint ⬜
+### T9.1 — Admin dashboard summary endpoint ✅
 
 `GET /admin/dashboard/summary` — total rooms, total flagged issues (count of non-'ok' `verification_items` in the active session, per §7.4). Implements BR-2.1.
 **Depends on:** T8.3, T3.1
+**Notes:** New `app/schemas/reports.py` + endpoints appended to `app/routers/admin.py`. `total_flagged_issues` is 0 when no session is active (not an error). Verified via curl: 0/0 on an empty DB, then 1/2 after recording a baseline, disputing shared, and verifying with a missing + a quantity-mismatch item.
 
-### T9.2 — Baselines report endpoint ⬜
+### T9.2 — Baselines report endpoint ✅
 
 `GET /admin/reports/baselines` — room, session, created_by, created_at, shared_confirmed. Implements BR-2.7 (basic/unfiltered per §3).
 **Depends on:** T4.3, T6.2
+**Notes:** All baselines across every session (not just the active one), most recent first. Verified via curl.
 
-### T9.3 — Verifications report endpoint ⬜
+### T9.3 — Verifications report endpoint ✅
 
 `GET /admin/reports/verifications` — room, session, flagged_count, verified_at. Implements BR-2.7.
 **Depends on:** T8.3
+**Notes:** `flagged_count` is a per-verification count of non-'ok' `verification_items`. Verified via curl against a verification with 2 flagged items out of 3.
 
-### T9.4 — Audit log endpoint ⬜
+### T9.4 — Audit log endpoint ✅
 
 `GET /admin/audit-log` — reverse-chronological feed including dispute comments. Implements BR-2.9, BR-4.10.
 **Depends on:** T1.7
+**Notes:** `limit`/`offset` query params (default 100, max 500) for pagination; ties `created_at DESC, id DESC` to keep pages stable. This closes out T6.4 — see its notes for the audit_logs.description widening this required. Verified via curl: dispute comment visible in the feed, pagination returns disjoint pages, cross-role 403.
 
-### T9.5 — Admin frontend: Dashboard page ⬜
+### T9.5 — Admin frontend: Dashboard page ✅
 
 Renders T9.1's summary.
 **Depends on:** T2.5, T9.1
+**Notes:** `frontend/app/admin/page.tsx` rewritten from its Phase-3 placeholder into two stat tiles (Total rooms, Flagged asset problems). `AdminNav` gained a "Dashboard" link (pointing at `/admin` itself) plus "Reports" and "Audit Log".
 
-### T9.6 — Admin frontend: Reports pages ⬜
+### T9.6 — Admin frontend: Reports pages ✅
 
 Renders T9.2 and T9.3 as list views.
 **Depends on:** T2.5, T9.2, T9.3
+**Notes:** Single route `frontend/app/admin/reports/page.tsx` with two stacked tables (Baselines, Verifications) — simple/unfiltered, matching the backend's scope decision.
 
-### T9.7 — Admin frontend: Audit trail page ⬜
+### T9.7 — Admin frontend: Audit trail page ✅
 
 Renders T9.4 as a scrollable/paginated feed.
 **Depends on:** T2.5, T9.4
+**Notes:** `frontend/app/admin/audit-log/page.tsx` — When/Who/What/Action columns, "Load more" button paging by 50 using T9.4's `limit`/`offset`. Verified end-to-end in real Chrome across all of T9.5-T9.7: dashboard tiles, both report tables, and the audit feed showing the dispute comment; 8/8 checks passed.
 
 ---
 
