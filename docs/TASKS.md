@@ -253,25 +253,29 @@ Category-filtered form (asset type, quantity, condition) with chair-auto-match (
 
 The Kofa bridge and read-only room view. Implements BR-1.5, BR-5.1, BR-5.2, BR-4.1, BR-4.2.
 
-### T5.1 — Kofa bridge endpoints ⬜
+### T5.1 — Kofa bridge endpoints ✅
 
 `GET /student/rooms/available` (dropdown source), `POST /student/allocation` (creates `student_room_allocations` row for the active session). Implements BR-1.5, BR-5.1, BR-5.2 (dropdown, not free text, per §3).
 **Depends on:** T1.3, T2.3, T3.5, T1.7
+**Notes:** `app/routers/student.py`. `rooms/available` lists every Admin-created room (capacity is informational only, not filtered by occupancy — §12). `POST /allocation` 409s if no active session, 404s on unknown room, and 409s (friendly pre-check + UNIQUE backstop) if the Student already has an allocation this session — there is no update-allocation endpoint in this phase. Verified via curl: available-rooms listing, successful allocation, duplicate-allocation 409, unknown-room 404, cross-role 403s.
 
-### T5.2 — Student room view endpoint ⬜
+### T5.2 — Student room view endpoint ✅
 
 `GET /student/room` — baseline items for the student's active allocation, split into corner/shared groups by `asset_types.sign_off_group` (§7.3). Implements BR-4.1, BR-4.2.
 **Depends on:** T1.4, T5.1, T4.3
+**Notes:** Same router. 404 when the Student has no active-session allocation (used by the frontend to decide onboarding vs. room view). `has_baseline: false` with empty corner/shared arrays when the Porter hasn't recorded a baseline yet — sign-off state deliberately not included yet (added in Phase 6, T6.1/T6.2, same pattern as `GET /porter/rooms`'s `shared_confirmed`). Verified via curl for both the baseline-recorded and not-yet-recorded cases.
 
-### T5.3 — Student frontend: first-login onboarding ⬜
+### T5.3 — Student frontend: first-login onboarding ✅
 
 Room/hall dropdown selection flow shown on first login, submitting to T5.1.
 **Depends on:** T2.5, T5.1
+**Notes:** Folded into `frontend/app/student/page.tsx` rather than a separate route — the page fetches `/student/room` on mount and shows the onboarding dropdown only on a 404 (no allocation yet), reusing the same `RoleGuard`/`DashboardShell` shell.
 
-### T5.4 — Student frontend: My Room page ⬜
+### T5.4 — Student frontend: My Room page ✅
 
 Displays corner/shared asset groupings from T5.2 (read-only at this stage; sign-off added in Phase 6).
 **Depends on:** T5.3, T5.2
+**Notes:** Same file — once `/student/room` resolves, renders "My Corner" / "Shared Room Items" tables (asset, qty, condition), or a "not recorded yet" message when `has_baseline` is false. Verified end-to-end in real Chrome: onboarding dropdown → allocation → My Room for a no-baseline room, plus My Room with populated Shared items for a baseline'd room; 11/11 checks passed.
 
 ---
 
