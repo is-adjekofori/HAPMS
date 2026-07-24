@@ -17,15 +17,22 @@ interface PorterRoom {
   baseline_id: number | null;
   baseline_locked: boolean;
   shared_confirmed: boolean;
+  no_baseline_yet: boolean;
+  pending_verification: boolean;
 }
 
 function baselineStatus(room: PorterRoom): {
   label: string;
   className: string;
 } {
-  if (!room.has_baseline)
+  if (room.no_baseline_yet)
     return {
       label: "Not recorded",
+      className: "text-amber-600 dark:text-amber-400",
+    };
+  if (room.pending_verification)
+    return {
+      label: "Pending verification",
       className: "text-amber-600 dark:text-amber-400",
     };
   if (room.baseline_locked)

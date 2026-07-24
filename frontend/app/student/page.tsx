@@ -51,6 +51,7 @@ interface StudentRoom {
   shared: BaselineItem[];
   corner_sign_off: SignOff | null;
   shared_sign_off: SignOff | null;
+  pending: boolean;
 }
 
 type ViewState =
@@ -467,6 +468,11 @@ function MyRoom({
           This is what the Porter logged for your room at check-in. Confirm or
           dispute each grouping independently.
         </p>
+      )}
+      {room.pending && (
+        <div className="mb-5 rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
+          Action needed: sign off on your Check-in Slip below.
+        </div>
       )}
       <ItemGroup title="My Corner" items={room.corner} />
       {room.has_baseline && room.baseline_id !== null && (

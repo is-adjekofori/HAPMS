@@ -306,6 +306,10 @@ def get_my_room(
             else:
                 shared_sign_off = response_signoff
 
+    # §7.10/BR-8.1 (conditional): pending iff a baseline exists and either
+    # sign-off is still missing for this student.
+    pending = baseline is not None and (corner_sign_off is None or shared_sign_off is None)
+
     return StudentRoomResponse(
         room_id=room.id,
         hall_name=hall.name,
@@ -317,6 +321,7 @@ def get_my_room(
         shared=shared,
         corner_sign_off=corner_sign_off,
         shared_sign_off=shared_sign_off,
+        pending=pending,
     )
 
 

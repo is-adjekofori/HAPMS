@@ -69,6 +69,9 @@ class StudentRoomResponse(BaseModel):
     # shared_confirmed derived flag - surfaced elsewhere - only needs one).
     corner_sign_off: SignOffResponse | None
     shared_sign_off: SignOffResponse | None
+    # §7.10/BR-8.1 (conditional): True when a baseline exists but this student
+    # is missing a sign-off for either group - i.e. an incomplete Check-in Slip.
+    pending: bool
 
 
 class ConditionReportCreate(BaseModel):

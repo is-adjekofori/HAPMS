@@ -30,6 +30,7 @@ from app.schemas.session import SessionCreate, SessionResponse
 from app.schemas.user import UserCreate, UserCreateResponse, UserResponse
 from app.services import audit
 from app.services.asset_rules import hall_category, room_capacity
+from app.services.pending import pending_signoff_room_count
 from app.services.sessions import get_active_session
 
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -386,6 +387,7 @@ def dashboard_summary(
 
     active_session = get_active_session(db)
     total_flagged_issues = 0
+    pending_signoff_count = 0
     if active_session is not None:
         total_flagged_issues = (
             db.query(VerificationItem)
@@ -403,8 +405,13 @@ def dashboard_summary(
             )
             .count()
         )
+        pending_signoff_count = pending_signoff_room_count(db, active_session)
 
-    return DashboardSummary(total_rooms=total_rooms, total_flagged_issues=total_flagged_issues)
+    return DashboardSummary(
+        total_rooms=total_rooms,
+        total_flagged_issues=total_flagged_issues,
+        pending_signoff_count=pending_signoff_count,
+    )
 
 
 @router.get("/reports/baselines", response_model=list[BaselineReportItem])

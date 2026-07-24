@@ -35,6 +35,12 @@ class PorterRoomResponse(BaseModel):
     baseline_locked: bool
     # §7.8: True as soon as any 'shared' sign-off row exists for the baseline.
     shared_confirmed: bool
+    # §7.10/BR-8.2 (conditional): the room needs Porter attention - no
+    # baseline recorded yet for the active session.
+    no_baseline_yet: bool
+    # §7.10/BR-8.2 (conditional): a baseline exists but hasn't been verified
+    # (locked) yet.
+    pending_verification: bool
 
 
 class BaselineItemCreate(BaseModel):

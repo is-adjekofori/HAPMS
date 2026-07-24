@@ -120,6 +120,12 @@ def list_assigned_rooms(
                 .first()
                 is not None
             )
+        # §7.10/BR-8.2 (conditional): both flags are only meaningful while a
+        # session is active - nothing is "pending" against no session at all.
+        no_baseline_yet = active_session is not None and baseline is None
+        pending_verification = (
+            active_session is not None and baseline is not None and not baseline.locked
+        )
         responses.append(
             PorterRoomResponse(
                 id=room.id,
@@ -132,6 +138,8 @@ def list_assigned_rooms(
                 baseline_id=baseline.id if baseline is not None else None,
                 baseline_locked=baseline.locked if baseline is not None else False,
                 shared_confirmed=shared_confirmed,
+                no_baseline_yet=no_baseline_yet,
+                pending_verification=pending_verification,
             )
         )
     return responses

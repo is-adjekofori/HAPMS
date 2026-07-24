@@ -8,6 +8,9 @@ class DashboardSummary(BaseModel):
     # §7.4: count of non-'ok' verification_items in the active session. 0 when
     # no session is active (not an error - there's simply nothing to flag).
     total_flagged_issues: int
+    # §7.10/BR-8.3 (conditional): count of rooms in the active session with at
+    # least one occupant missing a complete corner+shared sign-off pair.
+    pending_signoff_count: int
 
 
 class BaselineReportItem(BaseModel):
