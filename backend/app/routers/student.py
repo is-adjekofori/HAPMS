@@ -219,7 +219,8 @@ def create_signoff(
         entity_id=signoff.id,
         description=(
             f"{payload.status.value.capitalize()} sign-off ({payload.sign_off_group.value}) "
-            f"for baseline {baseline.id}"
+            f"for baseline {baseline.id}" + (f' — "{comment}"' if comment else "")
+            # BR-4.10: dispute comments must surface in the Admin audit trail.
         ),
     )
     db.commit()

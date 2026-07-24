@@ -3,13 +3,17 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
-// Grows as each Admin page lands (T3.6-T3.10); only add a link once its page exists.
+// Grows as each Admin page lands (T3.6-T3.10, T9.5-T9.7); only add a link
+// once its page exists.
 const LINKS = [
+  { href: "/admin", label: "Dashboard" },
   { href: "/admin/halls", label: "Halls" },
   { href: "/admin/rooms", label: "Rooms" },
   { href: "/admin/users", label: "Users" },
   { href: "/admin/porter-assignments", label: "Porters" },
   { href: "/admin/sessions", label: "Sessions" },
+  { href: "/admin/reports", label: "Reports" },
+  { href: "/admin/audit-log", label: "Audit Log" },
 ];
 
 export function AdminNav() {

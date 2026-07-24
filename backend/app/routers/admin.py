@@ -1,20 +1,30 @@
 from datetime import UTC, datetime
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import require_role
 from app.core.security import generate_temporary_password, hash_password
+from app.models.audit_log import AuditLog
 from app.models.hall import Hall
 from app.models.porter_room_assignment import PorterRoomAssignment
 from app.models.room import Room
 from app.models.room_inventory_baseline import RoomInventoryBaseline
 from app.models.session import HostelSession, SessionStatus
+from app.models.session_end_verification import SessionEndVerification
+from app.models.sign_off import SignOff
 from app.models.user import User, UserRole
+from app.models.verification_item import VerificationFlag, VerificationItem
 from app.schemas.hall import HallCreate, HallResponse
 from app.schemas.porter_assignment import PorterAssignmentCreate, PorterAssignmentResponse
+from app.schemas.reports import (
+    AuditLogEntry,
+    BaselineReportItem,
+    DashboardSummary,
+    VerificationReportItem,
+)
 from app.schemas.room import RoomCreate, RoomResponse
 from app.schemas.session import SessionCreate, SessionResponse
 from app.schemas.user import UserCreate, UserCreateResponse, UserResponse
@@ -363,3 +373,152 @@ def close_session(
     db.commit()
     db.refresh(session)
     return SessionResponse.model_validate(session, from_attributes=True)
+
+
+@router.get("/dashboard/summary", response_model=DashboardSummary)
+def dashboard_summary(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> DashboardSummary:
+    # BR-2.1: "at a glance" totals - total rooms is unconditional, flagged
+    # issues are scoped to the active session only (§7.4); 0 if none is active.
+    total_rooms = db.query(Room).count()
+
+    active_session = get_active_session(db)
+    total_flagged_issues = 0
+    if active_session is not None:
+        total_flagged_issues = (
+            db.query(VerificationItem)
+            .join(
+                SessionEndVerification,
+                SessionEndVerification.id == VerificationItem.verification_id,
+            )
+            .join(
+                RoomInventoryBaseline,
+                RoomInventoryBaseline.id == SessionEndVerification.baseline_id,
+            )
+            .filter(
+                RoomInventoryBaseline.session_id == active_session.id,
+                VerificationItem.flag != VerificationFlag.OK,
+            )
+            .count()
+        )
+
+    return DashboardSummary(total_rooms=total_rooms, total_flagged_issues=total_flagged_issues)
+
+
+@router.get("/reports/baselines", response_model=list[BaselineReportItem])
+def baselines_report(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> list[BaselineReportItem]:
+    # BR-2.7: a simple, unfiltered list across every session (§11 cut list -
+    # filtering by hall/session/asset type was descoped for this MVP).
+    rows = (
+        db.query(RoomInventoryBaseline, Room, Hall, HostelSession, User)
+        .join(Room, Room.id == RoomInventoryBaseline.room_id)
+        .join(Hall, Hall.id == Room.hall_id)
+        .join(HostelSession, HostelSession.id == RoomInventoryBaseline.session_id)
+        .join(User, User.id == RoomInventoryBaseline.created_by)
+        .order_by(RoomInventoryBaseline.created_at.desc())
+        .all()
+    )
+    result: list[BaselineReportItem] = []
+    for baseline, room, hall, session, creator in rows:
+        shared_confirmed = (
+            db.query(SignOff)
+            .filter(SignOff.baseline_id == baseline.id, SignOff.sign_off_group == "shared")
+            .first()
+            is not None
+        )
+        result.append(
+            BaselineReportItem(
+                baseline_id=baseline.id,
+                room_id=room.id,
+                hall_name=hall.name,
+                room_number=room.room_number,
+                session_id=session.id,
+                session_name=session.name,
+                created_by=creator.id,
+                created_by_name=creator.full_name,
+                created_at=baseline.created_at,
+                shared_confirmed=shared_confirmed,
+            )
+        )
+    return result
+
+
+@router.get("/reports/verifications", response_model=list[VerificationReportItem])
+def verifications_report(
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> list[VerificationReportItem]:
+    rows = (
+        db.query(SessionEndVerification, RoomInventoryBaseline, Room, Hall, HostelSession)
+        .join(
+            RoomInventoryBaseline,
+            RoomInventoryBaseline.id == SessionEndVerification.baseline_id,
+        )
+        .join(Room, Room.id == RoomInventoryBaseline.room_id)
+        .join(Hall, Hall.id == Room.hall_id)
+        .join(HostelSession, HostelSession.id == RoomInventoryBaseline.session_id)
+        .order_by(SessionEndVerification.verified_at.desc())
+        .all()
+    )
+    result: list[VerificationReportItem] = []
+    for verification, baseline, room, hall, session in rows:
+        flagged_count = (
+            db.query(VerificationItem)
+            .filter(
+                VerificationItem.verification_id == verification.id,
+                VerificationItem.flag != VerificationFlag.OK,
+            )
+            .count()
+        )
+        result.append(
+            VerificationReportItem(
+                verification_id=verification.id,
+                baseline_id=baseline.id,
+                room_id=room.id,
+                hall_name=hall.name,
+                room_number=room.room_number,
+                session_id=session.id,
+                session_name=session.name,
+                flagged_count=flagged_count,
+                verified_at=verification.verified_at,
+            )
+        )
+    return result
+
+
+@router.get("/audit-log", response_model=list[AuditLogEntry])
+def get_audit_log(
+    limit: int = Query(100, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Session = Depends(get_db),
+    admin: User = Depends(require_role(UserRole.ADMIN)),
+) -> list[AuditLogEntry]:
+    # BR-2.9/BR-4.10: reverse-chronological, unfiltered, including sign-off
+    # dispute comments (embedded in the description at write time - see
+    # create_signoff in app/routers/student.py).
+    rows = (
+        db.query(AuditLog, User)
+        .outerjoin(User, User.id == AuditLog.user_id)
+        .order_by(AuditLog.created_at.desc(), AuditLog.id.desc())
+        .offset(offset)
+        .limit(limit)
+        .all()
+    )
+    return [
+        AuditLogEntry(
+            id=log.id,
+            user_id=log.user_id,
+            user_name=user.full_name if user is not None else None,
+            action=log.action,
+            entity_type=log.entity_type,
+            entity_id=log.entity_id,
+            description=log.description,
+            created_at=log.created_at,
+        )
+        for log, user in rows
+    ]
