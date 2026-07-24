@@ -4,24 +4,32 @@ from sqlalchemy.orm import Session
 
 from app.core.database import get_db
 from app.core.deps import require_role
-from app.models.asset_type import AssetType
+from app.models.asset_type import AssetType, SignOffGroup
 from app.models.baseline_item import BaselineItem
 from app.models.hall import Hall
 from app.models.porter_room_assignment import PorterRoomAssignment
 from app.models.room import Room
 from app.models.room_inventory_baseline import RoomInventoryBaseline
+from app.models.session_end_verification import SessionEndVerification
 from app.models.sign_off import SignOff
 from app.models.user import User, UserRole
+from app.models.verification_item import VerificationFlag, VerificationItem
 from app.schemas.porter import (
     AssetTypeOption,
     BaselineCreate,
+    BaselineDetailResponse,
     BaselineItemResponse,
     BaselineResponse,
     PorterRoomResponse,
+    SignOffSummaryItem,
+    VerificationCreate,
+    VerificationItemResponse,
+    VerificationResponse,
 )
 from app.services import audit
 from app.services.baselines import valid_asset_rules_for_room
 from app.services.sessions import get_active_session
+from app.services.verification import compute_flag
 
 router = APIRouter(prefix="/porter", tags=["porter"])
 
@@ -47,6 +55,17 @@ def _assigned_room_or_403(db: Session, porter: User, room_id: int) -> Room:
             detail="This room is not assigned to you",
         )
     return room
+
+
+def _assigned_baseline_or_403(db: Session, porter: User, baseline_id: int) -> RoomInventoryBaseline:
+    """A Porter may only view/verify baselines for their own assigned rooms
+    (§7.6). 404 when the baseline doesn't exist, 403 when its room isn't
+    theirs."""
+    baseline = db.get(RoomInventoryBaseline, baseline_id)
+    if baseline is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Baseline not found")
+    _assigned_room_or_403(db, porter, baseline.room_id)
+    return baseline
 
 
 def _baseline_item_response(item: BaselineItem, asset_type: AssetType) -> BaselineItemResponse:
@@ -245,4 +264,179 @@ def create_baseline(
         created_at=baseline.created_at,
         locked=baseline.locked,
         items=[_baseline_item_response(item, asset_type) for item, asset_type in items],
+    )
+
+
+@router.get("/baselines/{baseline_id}", response_model=BaselineDetailResponse)
+def get_baseline_detail(
+    baseline_id: int,
+    db: Session = Depends(get_db),
+    porter: User = Depends(require_role(UserRole.PORTER)),
+) -> BaselineDetailResponse:
+    # T8.1: items + lock status + per-group sign-off summary (status, dispute
+    # comment) - the read side of BR-4.10, so a Porter can see disputes too.
+    baseline = _assigned_baseline_or_403(db, porter, baseline_id)
+
+    items = (
+        db.query(BaselineItem, AssetType)
+        .join(AssetType, AssetType.id == BaselineItem.asset_type_id)
+        .filter(BaselineItem.baseline_id == baseline.id)
+        .order_by(AssetType.id)
+        .all()
+    )
+
+    signoff_rows = (
+        db.query(SignOff, User)
+        .join(User, User.id == SignOff.student_id)
+        .filter(SignOff.baseline_id == baseline.id)
+        .order_by(SignOff.signed_at)
+        .all()
+    )
+    corner_sign_offs: list[SignOffSummaryItem] = []
+    shared_sign_offs: list[SignOffSummaryItem] = []
+    for signoff, student in signoff_rows:
+        summary = SignOffSummaryItem(
+            student_id=student.id,
+            student_name=student.full_name,
+            status=signoff.status,
+            comment=signoff.comment,
+            signed_at=signoff.signed_at,
+        )
+        if signoff.sign_off_group == SignOffGroup.CORNER:
+            corner_sign_offs.append(summary)
+        else:
+            shared_sign_offs.append(summary)
+
+    return BaselineDetailResponse(
+        id=baseline.id,
+        room_id=baseline.room_id,
+        session_id=baseline.session_id,
+        created_by=baseline.created_by,
+        created_at=baseline.created_at,
+        locked=baseline.locked,
+        items=[_baseline_item_response(item, asset_type) for item, asset_type in items],
+        corner_sign_offs=corner_sign_offs,
+        shared_sign_offs=shared_sign_offs,
+        shared_confirmed=len(shared_sign_offs) > 0,
+    )
+
+
+@router.post("/baselines/{baseline_id}/verify", response_model=VerificationResponse)
+def verify_baseline(
+    baseline_id: int,
+    payload: VerificationCreate,
+    db: Session = Depends(get_db),
+    porter: User = Depends(require_role(UserRole.PORTER)),
+) -> VerificationResponse:
+    # BR-3.4/BR-3.5/§7.5: Session-End Verification computes flags per §7.4 and
+    # locks the baseline in the same transaction.
+    baseline = _assigned_baseline_or_403(db, porter, baseline_id)
+
+    if baseline.locked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This room's baseline has already been verified and locked",
+        )
+
+    baseline_items = {
+        item.id: item
+        for item in db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline.id).all()
+    }
+
+    # Every baseline item must be covered exactly once - no partial
+    # verification, no extras, no duplicates.
+    seen: set[int] = set()
+    for entry in payload.items:
+        if entry.baseline_item_id not in baseline_items:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Baseline item {entry.baseline_item_id} does not belong to this baseline",
+            )
+        if entry.baseline_item_id in seen:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Baseline item {entry.baseline_item_id} is listed more than once",
+            )
+        seen.add(entry.baseline_item_id)
+    missing_item_ids = set(baseline_items) - seen
+    if missing_item_ids:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Missing verification entries for baseline items: {sorted(missing_item_ids)}",
+        )
+
+    verification = SessionEndVerification(baseline_id=baseline.id, verified_by=porter.id)
+    db.add(verification)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This room's baseline has already been verified and locked",
+        ) from exc
+
+    flagged_count = 0
+    for entry in payload.items:
+        baseline_item = baseline_items[entry.baseline_item_id]
+        flag = compute_flag(
+            baseline_quantity=baseline_item.quantity,
+            baseline_condition=baseline_item.condition,
+            current_quantity=entry.current_quantity,
+            current_condition=entry.current_condition,
+        )
+        if flag != VerificationFlag.OK:
+            flagged_count += 1
+        db.add(
+            VerificationItem(
+                verification_id=verification.id,
+                baseline_item_id=entry.baseline_item_id,
+                current_quantity=entry.current_quantity,
+                current_condition=entry.current_condition,
+                flag=flag,
+            )
+        )
+    db.flush()
+
+    # §7.5: locking happens in the same transaction as the verification write.
+    baseline.locked = True
+
+    audit.record(
+        db,
+        user_id=porter.id,
+        action="VERIFY_SESSION",
+        entity_type="session_end_verification",
+        entity_id=verification.id,
+        description=(
+            f"Verified and locked baseline {baseline.id} for room {baseline.room_id} "
+            f"({flagged_count} flagged item(s) of {len(payload.items)})"
+        ),
+    )
+    db.commit()
+    db.refresh(verification)
+
+    result_rows = (
+        db.query(VerificationItem, BaselineItem, AssetType)
+        .join(BaselineItem, BaselineItem.id == VerificationItem.baseline_item_id)
+        .join(AssetType, AssetType.id == BaselineItem.asset_type_id)
+        .filter(VerificationItem.verification_id == verification.id)
+        .order_by(AssetType.id)
+        .all()
+    )
+    return VerificationResponse(
+        verification_id=verification.id,
+        baseline_id=baseline.id,
+        verified_at=verification.verified_at,
+        items=[
+            VerificationItemResponse(
+                baseline_item_id=v_item.baseline_item_id,
+                asset_type_id=asset_type.id,
+                code=asset_type.code,
+                display_name=asset_type.display_name,
+                current_quantity=v_item.current_quantity,
+                current_condition=v_item.current_condition,
+                flag=v_item.flag,
+            )
+            for v_item, _b_item, asset_type in result_rows
+        ],
     )

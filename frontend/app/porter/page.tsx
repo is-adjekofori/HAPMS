@@ -91,16 +91,21 @@ function MyRoomsContent() {
                     {status.label}
                   </td>
                   <td className="py-2">
-                    {room.has_baseline ? (
-                      <span className="text-xs text-zinc-400">
-                        {room.baseline_locked ? "Locked" : "Recorded"}
-                      </span>
-                    ) : (
+                    {!room.has_baseline ? (
                       <Link
                         href={`/porter/rooms/${room.id}/baseline`}
                         className="text-xs font-medium text-black underline dark:text-zinc-50"
                       >
                         Record baseline
+                      </Link>
+                    ) : room.baseline_locked ? (
+                      <span className="text-xs text-zinc-400">Locked</span>
+                    ) : (
+                      <Link
+                        href={`/porter/rooms/${room.id}/verify`}
+                        className="text-xs font-medium text-black underline dark:text-zinc-50"
+                      >
+                        Verify &amp; lock
                       </Link>
                     )}
                   </td>
