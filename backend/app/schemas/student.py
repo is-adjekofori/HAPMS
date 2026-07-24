@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel
 
+from app.models.asset_type import SignOffGroup
+from app.models.sign_off import SignOffStatus
 from app.models.student_room_allocation import AllocationStatus
 from app.schemas.porter import BaselineItemResponse
 
@@ -31,6 +33,24 @@ class AllocationResponse(BaseModel):
     status: AllocationStatus
 
 
+class SignOffCreate(BaseModel):
+    baseline_id: int
+    sign_off_group: SignOffGroup
+    status: SignOffStatus
+    # Required when status is 'contested' (enforced in the service layer, not
+    # the schema); doubles as the dispute note (§7.7).
+    comment: str | None = None
+
+
+class SignOffResponse(BaseModel):
+    id: int
+    baseline_id: int
+    sign_off_group: SignOffGroup
+    status: SignOffStatus
+    comment: str | None
+    signed_at: datetime
+
+
 class StudentRoomResponse(BaseModel):
     room_id: int
     hall_name: str
@@ -42,3 +62,8 @@ class StudentRoomResponse(BaseModel):
     baseline_id: int | None
     corner: list[BaselineItemResponse]
     shared: list[BaselineItemResponse]
+    # This student's own sign-off for each group, if any (§7.3/BR-4.14: corner
+    # is always individual; shared is per-student too, though the room-level
+    # shared_confirmed derived flag - surfaced elsewhere - only needs one).
+    corner_sign_off: SignOffResponse | None
+    shared_sign_off: SignOffResponse | None

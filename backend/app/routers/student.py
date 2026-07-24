@@ -9,6 +9,7 @@ from app.models.baseline_item import BaselineItem
 from app.models.hall import Hall
 from app.models.room import Room
 from app.models.room_inventory_baseline import RoomInventoryBaseline
+from app.models.sign_off import SignOff, SignOffStatus
 from app.models.student_room_allocation import AllocationStatus, StudentRoomAllocation
 from app.models.user import User, UserRole
 from app.schemas.porter import BaselineItemResponse
@@ -16,6 +17,8 @@ from app.schemas.student import (
     AllocationCreate,
     AllocationResponse,
     RoomOption,
+    SignOffCreate,
+    SignOffResponse,
     StudentRoomResponse,
 )
 from app.services import audit
@@ -116,6 +119,109 @@ def create_allocation(
     return AllocationResponse.model_validate(allocation, from_attributes=True)
 
 
+def _student_baseline_or_403(db: Session, student: User, baseline_id: int) -> RoomInventoryBaseline:
+    """A Student may only sign off on the baseline for their own currently
+    allocated room in the active session (§7.3/BR-4.3). 404 when the baseline
+    doesn't exist, 403 when it isn't theirs."""
+    baseline = db.get(RoomInventoryBaseline, baseline_id)
+    if baseline is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Baseline not found")
+
+    active_session = get_active_session(db)
+    if active_session is None or baseline.session_id != active_session.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This baseline is not available for sign-off",
+        )
+
+    allocation = (
+        db.query(StudentRoomAllocation)
+        .filter(
+            StudentRoomAllocation.student_id == student.id,
+            StudentRoomAllocation.session_id == active_session.id,
+            StudentRoomAllocation.status == AllocationStatus.ACTIVE,
+        )
+        .first()
+    )
+    if allocation is None or allocation.room_id != baseline.room_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="This baseline is not for your allocated room",
+        )
+    return baseline
+
+
+@router.post("/signoff", response_model=SignOffResponse)
+def create_signoff(
+    payload: SignOffCreate,
+    db: Session = Depends(get_db),
+    student: User = Depends(require_role(UserRole.STUDENT)),
+) -> SignOffResponse:
+    # BR-4.3/BR-4.4/BR-4.8/BR-4.9: one independent sign-off per (baseline,
+    # student, group) - corner and shared are always signed separately.
+    baseline = _student_baseline_or_403(db, student, payload.baseline_id)
+
+    if baseline.locked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This room's baseline has been locked and can no longer be signed off",
+        )
+
+    comment = payload.comment.strip() if payload.comment else None
+    if payload.status == SignOffStatus.CONTESTED and not comment:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="A comment describing the issue is required to dispute this group",
+        )
+
+    existing = (
+        db.query(SignOff)
+        .filter(
+            SignOff.baseline_id == baseline.id,
+            SignOff.student_id == student.id,
+            SignOff.sign_off_group == payload.sign_off_group,
+        )
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You have already signed off on this group for this baseline",
+        )
+
+    signoff = SignOff(
+        baseline_id=baseline.id,
+        student_id=student.id,
+        sign_off_group=payload.sign_off_group,
+        status=payload.status,
+        comment=comment,
+    )
+    db.add(signoff)
+    try:
+        db.flush()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="You have already signed off on this group for this baseline",
+        ) from exc
+
+    audit.record(
+        db,
+        user_id=student.id,
+        action="CREATE_SIGNOFF",
+        entity_type="sign_off",
+        entity_id=signoff.id,
+        description=(
+            f"{payload.status.value.capitalize()} sign-off ({payload.sign_off_group.value}) "
+            f"for baseline {baseline.id}"
+        ),
+    )
+    db.commit()
+    db.refresh(signoff)
+    return SignOffResponse.model_validate(signoff, from_attributes=True)
+
+
 @router.get("/room", response_model=StudentRoomResponse)
 def get_my_room(
     db: Session = Depends(get_db),
@@ -179,6 +285,21 @@ def get_my_room(
             else:
                 shared.append(response_item)
 
+    corner_sign_off = None
+    shared_sign_off = None
+    if baseline is not None:
+        signoffs = (
+            db.query(SignOff)
+            .filter(SignOff.baseline_id == baseline.id, SignOff.student_id == student.id)
+            .all()
+        )
+        for signoff in signoffs:
+            response_signoff = SignOffResponse.model_validate(signoff, from_attributes=True)
+            if signoff.sign_off_group == SignOffGroup.CORNER:
+                corner_sign_off = response_signoff
+            else:
+                shared_sign_off = response_signoff
+
     return StudentRoomResponse(
         room_id=room.id,
         hall_name=hall.name,
@@ -188,4 +309,6 @@ def get_my_room(
         baseline_id=baseline.id if baseline is not None else None,
         corner=corner,
         shared=shared,
+        corner_sign_off=corner_sign_off,
+        shared_sign_off=shared_sign_off,
     )

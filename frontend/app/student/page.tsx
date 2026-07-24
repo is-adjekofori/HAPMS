@@ -27,6 +27,18 @@ interface BaselineItem {
   notes: string | null;
 }
 
+type SignOffStatus = "confirmed" | "contested";
+type SignOffGroup = "corner" | "shared";
+
+interface SignOff {
+  id: number;
+  baseline_id: number;
+  sign_off_group: SignOffGroup;
+  status: SignOffStatus;
+  comment: string | null;
+  signed_at: string;
+}
+
 interface StudentRoom {
   room_id: number;
   hall_name: string;
@@ -36,6 +48,8 @@ interface StudentRoom {
   baseline_id: number | null;
   corner: BaselineItem[];
   shared: BaselineItem[];
+  corner_sign_off: SignOff | null;
+  shared_sign_off: SignOff | null;
 }
 
 type ViewState =
@@ -172,7 +186,136 @@ function ItemGroup({ title, items }: { title: string; items: BaselineItem[] }) {
   );
 }
 
-function MyRoom({ room }: { room: StudentRoom }) {
+function SignOffPanel({
+  baselineId,
+  group,
+  signOff,
+  onSigned,
+}: {
+  baselineId: number;
+  group: SignOffGroup;
+  signOff: SignOff | null;
+  onSigned: () => void;
+}) {
+  const [disputing, setDisputing] = useState(false);
+  const [comment, setComment] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  async function submit(status: SignOffStatus) {
+    if (status === "contested" && !comment.trim()) {
+      setError("Please describe the issue before disputing.");
+      return;
+    }
+    setError(null);
+    setSubmitting(true);
+    try {
+      await apiFetch("/student/signoff", {
+        method: "POST",
+        body: {
+          baseline_id: baselineId,
+          sign_off_group: group,
+          status,
+          comment: comment.trim() || null,
+        },
+      });
+      onSigned();
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Unable to reach the server.",
+      );
+      setSubmitting(false);
+    }
+  }
+
+  if (signOff) {
+    return (
+      <div className="mb-6 -mt-4 text-sm">
+        <span
+          className={
+            signOff.status === "confirmed"
+              ? "text-green-700 dark:text-green-400"
+              : "text-amber-600 dark:text-amber-400"
+          }
+        >
+          {signOff.status === "confirmed" ? "Confirmed" : "Disputed"}
+        </span>
+        {signOff.comment && (
+          <p className="mt-1 text-xs text-zinc-500">
+            &ldquo;{signOff.comment}&rdquo;
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 -mt-4 max-w-xl">
+      {!disputing ? (
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => submit("confirmed")}
+            disabled={submitting}
+            className="rounded-md bg-black px-3 py-1 text-xs font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            Confirm
+          </button>
+          <button
+            type="button"
+            onClick={() => setDisputing(true)}
+            disabled={submitting}
+            className="rounded-md border border-zinc-300 px-3 py-1 text-xs font-medium text-black dark:border-zinc-700 dark:text-zinc-50"
+          >
+            Dispute
+          </button>
+        </div>
+      ) : (
+        <div>
+          <textarea
+            value={comment}
+            onChange={(e) => setComment(e.target.value)}
+            placeholder="Describe the issue…"
+            rows={2}
+            aria-label={`${group} dispute comment`}
+            className="mb-2 w-full rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() => submit("contested")}
+              disabled={submitting}
+              className="rounded-md bg-black px-3 py-1 text-xs font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+            >
+              Submit dispute
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setDisputing(false);
+                setError(null);
+              }}
+              className="text-xs text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+      {error && (
+        <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>
+      )}
+    </div>
+  );
+}
+
+function MyRoom({
+  room,
+  onSigned,
+}: {
+  room: StudentRoom;
+  onSigned: () => void;
+}) {
   return (
     <div>
       <h2 className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -186,11 +329,28 @@ function MyRoom({ room }: { room: StudentRoom }) {
         </p>
       ) : (
         <p className="mb-5 text-xs text-zinc-500">
-          This is what the Porter logged for your room at check-in.
+          This is what the Porter logged for your room at check-in. Confirm or
+          dispute each grouping independently.
         </p>
       )}
       <ItemGroup title="My Corner" items={room.corner} />
+      {room.has_baseline && room.baseline_id !== null && (
+        <SignOffPanel
+          baselineId={room.baseline_id}
+          group="corner"
+          signOff={room.corner_sign_off}
+          onSigned={onSigned}
+        />
+      )}
       <ItemGroup title="Shared Room Items" items={room.shared} />
+      {room.has_baseline && room.baseline_id !== null && (
+        <SignOffPanel
+          baselineId={room.baseline_id}
+          group="shared"
+          signOff={room.shared_sign_off}
+          onSigned={onSigned}
+        />
+      )}
     </div>
   );
 }
@@ -242,7 +402,12 @@ function StudentDashboardContent() {
       {state.kind === "onboarding" && (
         <OnboardingForm onAllocated={() => setRefreshKey((k) => k + 1)} />
       )}
-      {state.kind === "room" && <MyRoom room={state.room} />}
+      {state.kind === "room" && (
+        <MyRoom
+          room={state.room}
+          onSigned={() => setRefreshKey((k) => k + 1)}
+        />
+      )}
     </DashboardShell>
   );
 }
