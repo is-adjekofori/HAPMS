@@ -313,25 +313,29 @@ Extend `GET /porter/baselines/{id}` (built in T8.1) and the Admin audit log view
 
 Implements BR-4.5, BR-4.6.
 
-### T7.1 — Condition report endpoint ⬜
+### T7.1 — Condition report endpoint ✅
 
 `POST /student/condition-report` — free-text, optionally tagged to an asset type. Writes an audit log entry.
 **Depends on:** T1.6, T5.1, T1.7
+**Notes:** `app/routers/student.py`. Tied to the Student's current `ACTIVE` allocation (not a specific baseline), so it stays submittable "at any point before vacating" per BR-4.5, even after the room's baseline is locked (§7.5: additive, not an edit). 404 if the Student has no active allocation or an invalid `asset_type_id`; description is required (`Field(min_length=1)`). Verified via curl: general report, asset-tagged report, blank-description 422, invalid-asset-type 404, no-allocation 404.
 
-### T7.2 — Student history endpoint ⬜
+### T7.2 — Student history endpoint ✅
 
 `GET /student/history` — read-only list of the student's past sessions/allocations. Implements BR-4.6, BR-4.7 (no edit capability exists on this path by construction).
 **Depends on:** T1.3, T5.1
+**Notes:** Every `student_room_allocations` row for the caller (any session, any status), most recent first, joined to room/hall/session for display. Verified via curl for both a student with history and one with none (empty list, not an error).
 
-### T7.3 — Student frontend: condition report form ⬜
+### T7.3 — Student frontend: condition report form ✅
 
 Simple form submitting to T7.1, accessible from My Room page.
 **Depends on:** T5.4, T7.1
+**Notes:** `ConditionReportForm` in `frontend/app/student/page.tsx`, collapsed behind a "Report a condition change" link on My Room. Optional "related item" dropdown built from the room's own corner+shared asset types (deduped); blank descriptions blocked client-side before the request fires.
 
-### T7.4 — Student frontend: history page ⬜
+### T7.4 — Student frontend: history page ✅
 
 Read-only list view from T7.2.
 **Depends on:** T2.5, T7.2
+**Notes:** New route `frontend/app/student/history/page.tsx`, linked from My Room via "View my session history →" and back again via "← My Room". Verified end-to-end in real Chrome: condition-report submit (dropdown, client-side empty-description guard, success message), history navigation showing the session/room/status row, and the empty-history state for an unallocated student; 12/12 checks passed.
 
 ---
 
