@@ -306,6 +306,7 @@ Two independent sign-off actions (corner, shared) on the My Room page, each able
 Extend `GET /porter/baselines/{id}` (built in T8.1) and the Admin audit log view (T9.4) to surface `sign_offs.comment`. Implements BR-4.10.
 **Depends on:** T6.1, T8.1, T9.4
 **Note:** listed here for traceability; actual implementation happens alongside T8.1/T9.4 once those exist — mark Done only when both surfaces show dispute comments.
+**Progress:** Porter side done as of T8.1 — `GET /porter/baselines/{id}` returns `corner_sign_offs`/`shared_sign_offs` with `student_name`, `status`, and `comment`, verified via curl showing a contested shared sign-off's comment. Still waiting on T9.4 (Admin audit log) before this can be marked Done.
 
 ---
 
@@ -343,30 +344,35 @@ Read-only list view from T7.2.
 
 The second half of the "core loop." Implements BR-3.4, BR-3.5, BR-6.3, BR-7.3.
 
-### T8.1 — Baseline detail endpoint ⬜
+### T8.1 — Baseline detail endpoint ✅
 
 `GET /porter/baselines/{id}` — items, lock status, and per-group sign-off summary (status + comment). Implements the read side of BR-4.10.
 **Depends on:** T4.3, T6.1
+**Notes:** `app/routers/porter.py`, scoped via a new `_assigned_baseline_or_403` (404 unknown baseline, 403 if its room isn't the caller's). Returns `corner_sign_offs`/`shared_sign_offs` as lists of `{student_id, student_name, status, comment, signed_at}` — a list, not a single summary, since a room can have multiple occupants each with their own independent sign-off per group. Also returns `shared_confirmed` (T6.2's note that it belongs here too). Verified via curl: full detail with a contested shared sign-off's comment visible, cross-porter 403, unknown-baseline 404.
 
-### T8.2 — Auto-flagging algorithm ⬜
+### T8.2 — Auto-flagging algorithm ✅
 
 Implement the exact decision logic from `TECHNICAL_MVP.md §7.4` (missing / damaged / quantity_mismatch / ok) as a pure, unit-testable service function.
 **Depends on:** T1.5
+**Notes:** `app/services/verification.py`'s `compute_flag()` - pure function, no DB. Added `pytest` as a dev dependency and `backend/tests/test_verification.py` with 7 unit tests covering every branch (missing wins over all, newly-damaged vs. already-damaged-so-not-re-flagged, quantity shortfall vs. increase vs. exact match, and damaged-wins-over-quantity-mismatch branch ordering). All 7 pass (`uv run pytest`).
 
-### T8.3 — Submit verification endpoint ⬜
+### T8.3 — Submit verification endpoint ✅
 
 `POST /porter/baselines/{id}/verify` — creates `session_end_verifications` + `verification_items` using T8.2's logic, and in the same transaction sets `room_inventory_baselines.locked = TRUE` (§7.5). Writes an audit log entry. Implements BR-3.4, BR-3.5.
 **Depends on:** T8.2, T8.1
+**Notes:** Same router. Requires every baseline item to appear exactly once in the submitted `items` (400 on an unknown baseline_item_id, a duplicate, or any missing) - no partial verification. 409 if already locked (pre-check + UNIQUE(baseline_id) backstop on `session_end_verifications`). Verified via curl exercising all three flag types in one submission (table→missing, chair→damaged, bunk_bed→quantity_mismatch, mattress/cupboard/window_blind→ok) plus the validation 400s and re-verify 409.
 
-### T8.4 — Locking enforcement ⬜
+### T8.4 — Locking enforcement ✅
 
 Add the 409-on-locked guard to every baseline/sign-off mutation endpoint (T4.3 edit paths if any, T6.1) so a locked baseline can no longer be altered. Confirm `condition_reports` (T7.1) remains allowed post-lock. Implements BR-6.3.
 **Depends on:** T8.3, T6.1, T7.1
+**Notes:** No new guard code needed — T6.1's sign-off endpoint already 409s on a locked baseline, and there's no baseline-item edit endpoint to guard (baseline items are only ever set once, at T4.3 creation, which is separately protected by the one-baseline-per-room-per-session check). Verified via curl: sign-off on the now-locked baseline 409s, and a condition report on the same allocation still succeeds (200) post-lock, confirming it stays additive rather than edit-gated.
 
-### T8.5 — Porter frontend: Session-End Verification screen ⬜
+### T8.5 — Porter frontend: Session-End Verification screen ✅
 
 Shows baseline vs. current-state entry form, submits to T8.3, and renders the returned flags (missing/damaged/quantity_mismatch) visually.
 **Depends on:** T4.5, T8.1, T8.3
+**Notes:** New route `frontend/app/porter/rooms/[roomId]/verify/page.tsx`, linked from the Porter dashboard's "Verify & lock" action (replacing the old "Recorded" static text once a baseline exists and isn't locked yet). Per-item quantity/condition inputs default to the baseline's own values; on submit, shows a results table with color-coded flag labels (green OK, red Missing, orange Damaged, amber Quantity mismatch) and a way back to the dashboard. Verified end-to-end in real Chrome: form renders all items, submitting a mix of all three flag types renders them correctly, and revisiting an already-locked room's verify URL shows the locked-error state instead of the form.
 
 ---
 
