@@ -428,25 +428,31 @@ Renders T9.4 as a scrollable/paginated feed.
 
 Implements BR-8.1 through BR-8.3 (explicitly marked Conditional in the BRD). Build this phase only after the entire core loop (Phases 4–8) is complete and demonstrably working end-to-end — treat that as a pass/fail gate, not a partial attempt (per `TECHNICAL_MVP.md §14` risk mitigation). If skipped or partially done, no other phase is affected; this phase only adds computed fields to existing responses.
 
-### T10.1 — Student pending-signoff flag ⬜
+### T10.1 — Student pending-signoff flag ✅
 
 Extend `GET /student/room` (T5.2) with a derived flag: pending if the active baseline is missing a corner or shared sign-off from this student (§7.10). Implements BR-8.1.
 **Depends on:** T5.2, T6.1
+**Notes:** `pending = has_baseline && (corner_sign_off is None or shared_sign_off is None)` in `get_my_room` (`app/routers/student.py`) - trivial once `corner_sign_off`/`shared_sign_off` already existed from T6.1. Verified via curl: a student with a complete sign-off pair gets `pending: false`, one with none gets `pending: true`.
 
-### T10.2 — Porter pending-room flags ⬜
+### T10.2 — Porter pending-room flags ✅
 
 Extend `GET /porter/rooms` (T4.1) with derived flags: no-baseline-yet, and baseline-unlocked-pending-verification. Implements BR-8.2.
 **Depends on:** T4.1, T8.3
+**Notes:** `no_baseline_yet` and `pending_verification` added to `PorterRoomResponse`; both false when no session is active (nothing to be pending against). Verified via curl across three rooms: no baseline yet, baseline recorded but unverified (both true/false as expected), and the same fields checked via automated browser.
 
-### T10.3 — Admin pending count ⬜
+### T10.3 — Admin pending count ✅
 
 Extend `GET /admin/dashboard/summary` (T9.1) with `pending_signoff_count`. Implements BR-8.3.
 **Depends on:** T9.1, T6.1
+**Notes:** New `app/services/pending.py`: `pending_signoff_room_count()` counts rooms in the active session where at least one current occupant is missing a complete corner+shared sign-off pair (rooms with no baseline or no current occupants don't count). Verified via curl with a 3-room, 3-student scenario: one room with one occupant fully signed off and one occupant with no sign-offs at all (counts as pending), one room with its single occupant fully signed off (doesn't count), and one room with no baseline (doesn't count) — `pending_signoff_count` came back exactly 1.
 
-### T10.4 — Frontend pending indicators ⬜
+### T10.4 — Frontend pending indicators ✅
 
 Surface the three flags above as visible badges/banners on Student My Room, Porter Assigned Rooms, and Admin Dashboard.
 **Depends on:** T10.1, T10.2, T10.3, T5.4, T4.5, T9.5
+**Notes:** Student My Room shows an amber "Action needed: sign off on your Check-in Slip below" banner when `pending`. Porter dashboard's status column now reads directly off `no_baseline_yet`/`pending_verification` (rather than re-deriving from `has_baseline`/`baseline_locked`) and adds a "Pending verification" label distinct from "Not recorded". Admin dashboard gained a third stat tile, "Pending sign-offs". Verified end-to-end in real Chrome across all three roles against the same 3-room scenario from T10.3; 5/5 checks passed.
+
+**Phase 10 (Pending-Action Indicators) is complete.**
 
 ---
 
