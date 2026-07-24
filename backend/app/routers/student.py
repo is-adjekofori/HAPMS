@@ -6,9 +6,11 @@ from app.core.database import get_db
 from app.core.deps import require_role
 from app.models.asset_type import AssetType, SignOffGroup
 from app.models.baseline_item import BaselineItem
+from app.models.condition_report import ConditionReport
 from app.models.hall import Hall
 from app.models.room import Room
 from app.models.room_inventory_baseline import RoomInventoryBaseline
+from app.models.session import HostelSession
 from app.models.sign_off import SignOff, SignOffStatus
 from app.models.student_room_allocation import AllocationStatus, StudentRoomAllocation
 from app.models.user import User, UserRole
@@ -16,6 +18,9 @@ from app.schemas.porter import BaselineItemResponse
 from app.schemas.student import (
     AllocationCreate,
     AllocationResponse,
+    ConditionReportCreate,
+    ConditionReportResponse,
+    HistoryAllocationResponse,
     RoomOption,
     SignOffCreate,
     SignOffResponse,
@@ -312,3 +317,96 @@ def get_my_room(
         corner_sign_off=corner_sign_off,
         shared_sign_off=shared_sign_off,
     )
+
+
+@router.post("/condition-report", response_model=ConditionReportResponse)
+def create_condition_report(
+    payload: ConditionReportCreate,
+    db: Session = Depends(get_db),
+    student: User = Depends(require_role(UserRole.STUDENT)),
+) -> ConditionReportResponse:
+    # BR-4.5: a Student may report a condition change "at any point before
+    # vacating" - tied to their current (ACTIVE) allocation, not a specific
+    # session lookup, and allowed even after the room's baseline is locked
+    # (§7.5: condition reports are additive, never an edit).
+    allocation = (
+        db.query(StudentRoomAllocation)
+        .filter(
+            StudentRoomAllocation.student_id == student.id,
+            StudentRoomAllocation.status == AllocationStatus.ACTIVE,
+        )
+        .first()
+    )
+    if allocation is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="You have no active room allocation to report against",
+        )
+
+    asset_type = None
+    if payload.asset_type_id is not None:
+        asset_type = db.get(AssetType, payload.asset_type_id)
+        if asset_type is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Asset type not found"
+            )
+
+    report = ConditionReport(
+        allocation_id=allocation.id,
+        asset_type_id=payload.asset_type_id,
+        description=payload.description.strip(),
+    )
+    db.add(report)
+    db.flush()
+
+    audit.record(
+        db,
+        user_id=student.id,
+        action="CREATE_CONDITION_REPORT",
+        entity_type="condition_report",
+        entity_id=report.id,
+        description=f"Condition report on allocation {allocation.id}: {report.description}",
+    )
+    db.commit()
+    db.refresh(report)
+    return ConditionReportResponse(
+        id=report.id,
+        allocation_id=report.allocation_id,
+        asset_type_id=report.asset_type_id,
+        asset_type_code=asset_type.code if asset_type is not None else None,
+        description=report.description,
+        reported_at=report.reported_at,
+        status=report.status,
+    )
+
+
+@router.get("/history", response_model=list[HistoryAllocationResponse])
+def get_history(
+    db: Session = Depends(get_db),
+    student: User = Depends(require_role(UserRole.STUDENT)),
+) -> list[HistoryAllocationResponse]:
+    # BR-4.6/BR-4.7: read-only, every past (and current) allocation for this
+    # Student - no endpoint anywhere lets them edit or delete one.
+    rows = (
+        db.query(StudentRoomAllocation, Room, Hall, HostelSession)
+        .join(Room, Room.id == StudentRoomAllocation.room_id)
+        .join(Hall, Hall.id == Room.hall_id)
+        .join(HostelSession, HostelSession.id == StudentRoomAllocation.session_id)
+        .filter(StudentRoomAllocation.student_id == student.id)
+        .order_by(StudentRoomAllocation.allocated_at.desc())
+        .all()
+    )
+    return [
+        HistoryAllocationResponse(
+            id=allocation.id,
+            session_id=session.id,
+            session_name=session.name,
+            session_status=session.status,
+            hall_name=hall.name,
+            room_number=room.room_number,
+            corner_label=room.corner_label,
+            allocated_at=allocation.allocated_at,
+            status=allocation.status,
+        )
+        for allocation, room, hall, session in rows
+    ]

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 import { RoleGuard } from "@/components/RoleGuard";
 import { DashboardShell } from "@/components/DashboardShell";
@@ -309,6 +310,140 @@ function SignOffPanel({
   );
 }
 
+function ConditionReportForm({
+  assetOptions,
+}: {
+  assetOptions: BaselineItem[];
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [assetTypeId, setAssetTypeId] = useState("");
+  const [description, setDescription] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  // Dedupe by asset_type_id: corner + shared items may repeat across renders
+  // but each asset type should appear once in the dropdown.
+  const uniqueAssets = Array.from(
+    new Map(assetOptions.map((item) => [item.asset_type_id, item])).values(),
+  );
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!description.trim()) {
+      setError("Please describe what changed.");
+      return;
+    }
+    setError(null);
+    setSuccess(false);
+    setSubmitting(true);
+    try {
+      await apiFetch("/student/condition-report", {
+        method: "POST",
+        body: {
+          description: description.trim(),
+          asset_type_id: assetTypeId ? Number(assetTypeId) : null,
+        },
+      });
+      setSuccess(true);
+      setDescription("");
+      setAssetTypeId("");
+    } catch (err) {
+      setError(
+        err instanceof ApiError ? err.message : "Unable to reach the server.",
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
+  if (!expanded) {
+    return (
+      <button
+        type="button"
+        onClick={() => setExpanded(true)}
+        className="text-sm font-medium text-black underline dark:text-zinc-50"
+      >
+        Report a condition change
+      </button>
+    );
+  }
+
+  return (
+    <div className="max-w-xl rounded-md border border-zinc-200 p-4 dark:border-zinc-800">
+      <h3 className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
+        Report a condition change
+      </h3>
+      <p className="mb-3 text-xs text-zinc-500">
+        Flag anything that changed during your stay, e.g. &ldquo;the fan stopped
+        working in March&rdquo;.
+      </p>
+      <form onSubmit={handleSubmit}>
+        {uniqueAssets.length > 0 && (
+          <>
+            <label
+              htmlFor="asset"
+              className="mb-1 block text-xs font-medium text-zinc-500"
+            >
+              Related item (optional)
+            </label>
+            <select
+              id="asset"
+              value={assetTypeId}
+              onChange={(e) => setAssetTypeId(e.target.value)}
+              className="mb-3 w-full rounded-md border border-zinc-300 px-2 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+            >
+              <option value="">General (not tied to a specific item)</option>
+              {uniqueAssets.map((item) => (
+                <option key={item.asset_type_id} value={item.asset_type_id}>
+                  {item.display_name}
+                </option>
+              ))}
+            </select>
+          </>
+        )}
+        <label
+          htmlFor="description"
+          className="mb-1 block text-xs font-medium text-zinc-500"
+        >
+          What changed?
+        </label>
+        <textarea
+          id="description"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={3}
+          className="mb-3 w-full rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
+        />
+        {error && (
+          <p className="mb-3 text-xs text-red-600 dark:text-red-400">{error}</p>
+        )}
+        {success && (
+          <p className="mb-3 text-xs text-green-700 dark:text-green-400">
+            Report submitted. Thank you.
+          </p>
+        )}
+        <div className="flex gap-2">
+          <button
+            type="submit"
+            disabled={submitting}
+            className="rounded-md bg-black px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+          >
+            {submitting ? "Submitting…" : "Submit report"}
+          </button>
+          <button
+            type="button"
+            onClick={() => setExpanded(false)}
+            className="text-sm text-zinc-500 hover:text-black dark:hover:text-zinc-50"
+          >
+            Close
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
 function MyRoom({
   room,
   onSigned,
@@ -351,6 +486,9 @@ function MyRoom({
           onSigned={onSigned}
         />
       )}
+      <div className="mt-2">
+        <ConditionReportForm assetOptions={[...room.corner, ...room.shared]} />
+      </div>
     </div>
   );
 }
@@ -391,6 +529,14 @@ function StudentDashboardContent() {
 
   return (
     <DashboardShell title="Student Dashboard">
+      <div className="mb-4">
+        <Link
+          href="/student/history"
+          className="text-sm text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
+        >
+          View my session history →
+        </Link>
+      </div>
       {state.kind === "loading" && (
         <p className="text-sm text-zinc-500">Loading…</p>
       )}

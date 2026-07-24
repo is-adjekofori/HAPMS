@@ -1,8 +1,10 @@
 from datetime import datetime
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.models.asset_type import SignOffGroup
+from app.models.condition_report import ConditionReportStatus
+from app.models.session import SessionStatus
 from app.models.sign_off import SignOffStatus
 from app.models.student_room_allocation import AllocationStatus
 from app.schemas.porter import BaselineItemResponse
@@ -67,3 +69,33 @@ class StudentRoomResponse(BaseModel):
     # shared_confirmed derived flag - surfaced elsewhere - only needs one).
     corner_sign_off: SignOffResponse | None
     shared_sign_off: SignOffResponse | None
+
+
+class ConditionReportCreate(BaseModel):
+    description: str = Field(min_length=1)
+    asset_type_id: int | None = None
+
+
+class ConditionReportResponse(BaseModel):
+    id: int
+    allocation_id: int
+    asset_type_id: int | None
+    asset_type_code: str | None
+    description: str
+    reported_at: datetime
+    status: ConditionReportStatus
+
+
+class HistoryAllocationResponse(BaseModel):
+    """One past (or current) room allocation - read-only, per BR-4.6/BR-4.7:
+    there is no endpoint that lets a Student edit or delete these."""
+
+    id: int
+    session_id: int
+    session_name: str
+    session_status: SessionStatus
+    hall_name: str
+    room_number: str
+    corner_label: str | None
+    allocated_at: datetime
+    status: AllocationStatus
