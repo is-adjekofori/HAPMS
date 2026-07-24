@@ -283,20 +283,23 @@ Displays corner/shared asset groupings from T5.2 (read-only at this stage; sign-
 
 Implements BR-4.3, BR-4.4, BR-4.8 through BR-4.14 (the full sign-off + dispute + shared-confirmation model).
 
-### T6.1 — Sign-off endpoint ⬜
+### T6.1 — Sign-off endpoint ✅
 
 `POST /student/signoff` — creates an independent `sign_offs` row per (baseline, student, group); accepts `status` ('confirmed'/'contested') and an optional/required `comment`. Writes an audit log entry. Implements BR-4.3, BR-4.4, BR-4.8, BR-4.9.
 **Depends on:** T1.4, T5.2, T1.7
+**Notes:** `app/routers/student.py`. Scoped via `_student_baseline_or_403`: 404 if the baseline doesn't exist, 403 if it isn't for the Student's currently-allocated room in the active session. 409 if the baseline is already `locked`; 400 if `status='contested'` with no (or blank) comment; 409 on a duplicate (baseline, student, group) sign-off (friendly pre-check + UNIQUE backstop). `GET /student/room` extended with `corner_sign_off`/`shared_sign_off` (this student's own, or null) so the frontend can render already-signed state. Verified via curl: happy path for both groups, blank-comment-on-dispute 400, duplicate 409, locked-baseline 409.
 
-### T6.2 — Shared Room Item confirmation logic ⬜
+### T6.2 — Shared Room Item confirmation logic ✅
 
 Derived `shared_confirmed` computation (§7.8, BR-4.12–4.13) surfaced on `GET /porter/rooms` (extend T4.1) and in baseline detail responses.
 **Depends on:** T6.1, T4.1
+**Notes:** Already implemented in T4.1's `GET /porter/rooms` (any 'shared' sign-off row, confirmed or contested, flips `shared_confirmed` true) — no code change needed here, just verification against real sign-off data now that T6.1 exists. Confirmed via curl: a contested shared sign-off correctly set `shared_confirmed: true`.
 
-### T6.3 — Student frontend: sign-off UI ⬜
+### T6.3 — Student frontend: sign-off UI ✅
 
 Two independent sign-off actions (corner, shared) on the My Room page, each able to carry a dispute note. Implements BR-4.14.
 **Depends on:** T5.4, T6.1
+**Notes:** `SignOffPanel` in `frontend/app/student/page.tsx`, rendered once per group under its item table. Confirm is one click; Dispute reveals a required textarea (blocked client-side with an inline message if empty) before submitting. Once signed, the panel becomes read-only (status + comment), matching the "independent, one-shot" sign-off model — no edit/undo in this phase. Verified end-to-end in real Chrome across two students on the same room (independent corner sign-off per BR-4.14): 11/11 checks passed, including the empty-dispute-comment guard and persistence across reload.
 
 ### T6.4 — Porter/Admin visibility of dispute comments ⬜
 
