@@ -496,25 +496,29 @@ A separate seed script (distinct from T1.2's structural seed) that populates 2�
 
 ## Phase 12 — Delivery
 
-### T12.1 — Environment configuration for deployment ⬜
+### T12.1 — Environment configuration for deployment ✅
 
 Production-style `.env` handling, secrets management, CORS configuration for the deployed frontend origin.
 **Depends on:** T0.4
+**Notes:** New "Deployment" section in the root `README.md`: a table of every backend/frontend env var with production guidance (fresh per-environment `JWT_SECRET_KEY`, dedicated non-root DB user, `CORS_ORIGINS` set to the exact deployed frontend origin, `NEXT_PUBLIC_API_URL` baked in at build time), a secrets-management section (never commit real secrets, rotate `JWT_SECRET_KEY` on exposure — stateless JWTs mean rotation instantly invalidates every issued token), and a migrations/seed/first-Admin-account runbook for a production database. The app was already fully env-driven (no hardcoded hosts) from earlier phases; this closes the gap of it being undocumented.
 
-### T12.2 — Deployment ⬜
+### T12.2 — Deployment 🟥
 
 Deploy backend + MySQL and frontend to chosen hosting; run migrations (T1.1–T1.7) against the deployed database; run the seed script (T1.2).
 **Depends on:** T12.1, all of Phase 1
+**Blocked:** requires a real hosting account/credentials that only the project owner can provide (cloud provider signup, billing, domain/DNS) — an AI agent cannot make this decision or hold these credentials unilaterally. T12.1's README "Deployment" section documents the exact steps to run once a host is chosen; asked the user directly (2026-07-31) and they chose to skip live deployment for now, matching how many FYP submissions are demoed locally/via screen-share rather than hosted. Revisit if/when a hosting target is chosen.
 
-### T12.3 — UAT with sample accounts ⬜
+### T12.3 — UAT with sample accounts 🟥
 
 Create one real Admin, Porter, and Student account on the deployed system and walk through the full lifecycle (T11.4's checklist) against it.
 **Depends on:** T12.2, T11.4
+**Blocked:** depends on T12.2. T11.4's full walkthrough (24/24 real checks passed) already covers the same checklist against the local dev system — re-run it against a deployed instance once T12.2 unblocks.
 
-### T12.4 — Project documentation ⬜
+### T12.4 — Project documentation ✅
 
 Finalize `README.md`: architecture overview, setup/run instructions, environment variables, seed data, and a pointer to `docs/BRD.md` / `docs/TECHNICAL_MVP.md` / this file for full context.
 **Depends on:** T12.2
+**Notes:** Added an "Architecture overview" section (the core loop, role-based access), a "Seed data" section (`app.seed.run` + `app.seed.run_demo`), and a "Run the backend test suite" section (`uv run pytest`, real-DB convention explained) to the pre-existing setup/run instructions; environment variables are documented in T12.1's Deployment section rather than duplicated. The `docs/BRD.md`/`docs/TECHNICAL_MVP.md`/`docs/TASKS.md` pointer was already present at the top of the file from T0.4. **Completed ahead of T12.2** (its literal "Depends on" per the tracker) since a live deployed instance isn't required to write documentation about running the system — nothing here describes deployment-specific setup beyond what T12.1 already covers.
 
 ---
 
