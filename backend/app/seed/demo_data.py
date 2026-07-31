@@ -221,7 +221,8 @@ def seed_demo_data(db: Session) -> None:
         entity_type="sign_off",
         entity_id=shared_signoff.id,
         description=(
-            f'[Demo] Contested sign-off (shared) for baseline {baseline_102.id} — "{dispute_comment}"'
+            f"[Demo] Contested sign-off (shared) for baseline {baseline_102.id} — "
+            f'"{dispute_comment}"'
         ),
     )
     audit.record(
