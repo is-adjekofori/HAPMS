@@ -1,13 +1,16 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 
 from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    full_name: str
-    email: EmailStr
+    # Matches users.full_name's VARCHAR(150) / email's VARCHAR(150) (§6.1) so
+    # an oversized value is a clean 422 instead of a raw MySQL DataError under
+    # strict SQL mode.
+    full_name: str = Field(min_length=1, max_length=150)
+    email: EmailStr = Field(max_length=150)
     # BR-2.5: the Admin creates Porter and Student accounts only. Admin
     # accounts are provisioned outside this endpoint (e.g. a seed script).
     role: UserRole

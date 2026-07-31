@@ -40,8 +40,10 @@ class SignOffCreate(BaseModel):
     sign_off_group: SignOffGroup
     status: SignOffStatus
     # Required when status is 'contested' (enforced in the service layer, not
-    # the schema); doubles as the dispute note (§7.7).
-    comment: str | None = None
+    # the schema); doubles as the dispute note (§7.7). max_length matches
+    # sign_offs.comment's VARCHAR(500) so an oversized value is a clean 422
+    # instead of a raw MySQL DataError under strict SQL mode.
+    comment: str | None = Field(default=None, max_length=500)
 
 
 class SignOffResponse(BaseModel):
