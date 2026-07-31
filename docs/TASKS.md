@@ -460,30 +460,37 @@ Surface the three flags above as visible badges/banners on Student My Room, Port
 
 Not a single feature — a pass over everything built so far to confirm the system-wide rules in `BRD.md §7` actually hold.
 
-### T11.1 — Role-based data-scoping audit ⬜
+### T11.1 — Role-based data-scoping audit ✅
 
 Verify (via tests and manual checks) that: a Student can never fetch another student's room; a Porter can never fetch/act on an unassigned room; a Porter cannot reach any `/admin/*` route. Implements BR-6.1.
 **Depends on:** Phases 3–8 complete
+**Notes:** New `backend/tests/test_rbac_scoping.py` (6 automated integration tests against the real dev DB via `TestClient`, no mocking — matching the rest of the project's verification style): Porter and Student both 403 on every `/admin/*` route, an unauthenticated request is 401 (not 403), a Porter gets 403 on every action against a room/baseline not assigned to them (asset-types, create-baseline, baseline-detail, verify) while a 404 stays a clean 404 for a nonexistent baseline, and two Students in the same session structurally can only ever see their own `room_id` (there is no endpoint that accepts another student's id at all). Added `backend/tests/conftest.py` with shared fixtures (`db`, `client`, `make_user`/`make_hall`/`make_room`, `auth_headers`, and a `delete_all` teardown helper — needed because these plain-column models have no ORM `relationship()` links, so a batched multi-object delete doesn't auto-order by FK; `delete_all` flushes each delete individually in caller-specified child-first order). All 6 pass and leave zero residue (re-run twice back-to-back, verified 0 leftover rows).
 
-### T11.2 — Session-lifecycle edge case tests ⬜
+### T11.2 — Session-lifecycle edge case tests ✅
 
 Verify duplicate-baseline rejection (409, friendly message) and the session-close verification gate (409 + outstanding room list) behave exactly as specified in §7.9.
 **Depends on:** T4.3, T3.5, T8.3
+**Notes:** New `backend/tests/test_session_lifecycle.py` (3 automated integration tests): a second baseline for the same room/session is rejected 409 with a friendly "already" message; closing a session with an unverified room is rejected 409 with that room's id in `unverified_room_ids`, then succeeds once verified, and closing an already-closed session is a clean 409 (not a 500); creating a second active session while one is already active is rejected 409. All 3 pass and clean up after themselves.
 
-### T11.3 — Input validation & error-handling pass ⬜
+### T11.3 — Input validation & error-handling pass ✅
 
 Review every endpoint's Pydantic request/response schemas; ensure constraint violations (unique, required fields, invalid enum values) surface as clean 4xx errors, not raw stack traces or database exceptions.
 **Depends on:** all Phase 3–9 endpoints
+**Bug found & fixed:** MySQL 8.4 runs in `STRICT_TRANS_TABLES` mode, so a request field longer than its DB column (e.g. a 150-char hall name against `halls.name VARCHAR(100)`) wasn't being validated by Pydantic and hit MySQL as an unhandled `DataError` — a raw 500, reproduced live via curl. Fixed by adding `max_length` (matching the DB column exactly) to `HallCreate.name`, `RoomCreate.room_number`/`corner_label`, `SessionCreate.name`, `UserCreate.full_name`/`email`, and `SignOffCreate.comment`; re-verified the same oversized payload now returns a clean 422 and normal-sized payloads are unaffected. Also manually probed (all clean 4xx, no 500s): invalid enum values, malformed JSON bodies, nonexistent-FK references (hall/porter/user ids), garbage/absent bearer tokens, and malformed login payloads.
 
-### T11.4 — Full acceptance-criteria walkthrough ⬜
+### T11.4 — Full acceptance-criteria walkthrough ✅
 
 Manually execute every checklist item in `BRD.md §10` and `TECHNICAL_MVP.md §13` against the running system; log and fix defects found.
 **Depends on:** Phases 1–9 complete (Phase 10 items included if built)
+**Notes:** One continuous curl-driven scenario (script kept in the session scratchpad, not committed) exercising the full lifecycle end-to-end: hall→room creation with derived category/capacity, porter+student account creation, porter-room assignment, session open (plus second-active-session rejection), category-filtered asset types, baseline recording (plus duplicate rejection), student allocation, corner/shared split view with the pending flag, sign-off (confirmed + a rejected-then-accepted contested dispute with comment), a second student's independent sign-off flipping `shared_confirmed`, a condition report visible in history, Session-End Verification producing all three flag types (missing/damaged/quantity_mismatch) in one submission, post-lock enforcement (sign-off 409, condition report still 200), the Admin dashboard's flagged count, the dispute comment visible in the audit log, and the session-close gate (blocked with the exact unverified room id, then succeeding once verified). 24/24 real assertions passed on the first run (one script-side assertion bug produced a spurious extra FAIL line — not an application defect). No BRD §10/TECHNICAL_MVP §13 items failed; the one BRD §10 line about filtered/exportable reports is intentionally the unfiltered version per T9.2/T9.3's documented scope decision, deferred to T13.4.
 
-### T11.5 — Demo/UAT seed data script ⬜
+### T11.5 — Demo/UAT seed data script ✅
 
 A separate seed script (distinct from T1.2's structural seed) that populates 2–3 halls of different hall_types, several rooms, a few students, one deliberately-contested sign-off, and one deliberately-flagged verification discrepancy, so the system can be demonstrated or UAT-tested without live data entry.
 **Depends on:** T11.4
+**Notes:** `backend/app/seed/demo_data.py` (`seed_demo_data()`) + `backend/app/seed/run_demo.py` (`uv run python -m app.seed.run_demo`, runs T1.2's structural seed first). Idempotent by convention (no-op if the demo hall already exists) rather than by upsert, since this is a stateful scenario, not a lookup table. Populates 3 halls (Regular, Hall 6, Hall 7) / 4 rooms, 1 admin + 2 porters + 4 students (all `demo-*@example.com` / `DemoPass123!`), and one active session covering every state the UI can show at once: Room 101 fully signed-off and verified clean, Room 102 with a contested Shared dispute (comment) plus a second occupant who hasn't signed off yet and an unverified baseline, Room 601 verified with a deliberately-flagged missing item, and Room 701 corner A with no baseline at all. Verified end-to-end against the live API: admin dashboard shows `total_flagged_issues:1`, `pending_signoff_count:2`; both porters see the correct per-room status; the disputed student's comment round-trips; the not-yet-signed student shows `pending:true`. Removed from the dev DB after verification (it leaves a permanently-active session, which would collide with T11.1/T11.2's own session-lifecycle tests) — re-seed on demand before a demo/UAT session.
+
+**Phase 11 (Cross-Role Quality & Hardening) is complete.**
 
 ---
 
