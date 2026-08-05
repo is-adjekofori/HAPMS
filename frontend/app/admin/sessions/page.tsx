@@ -1,12 +1,55 @@
 "use client";
 
 import { useState } from "react";
+import { AlertTriangle, Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface HostelSession {
   id: number;
@@ -28,22 +71,12 @@ function formatDate(value: string | null): string {
   return new Date(value).toLocaleString();
 }
 
-function SessionsPageContent() {
-  const {
-    data: sessions,
-    loading,
-    error: loadError,
-    refetch,
-  } = useApiResource<HostelSession[]>("/admin/sessions");
-
+function CreateSessionDialog({ onCreated }: { onCreated: () => void }) {
+  const [open, setOpen] = useState(false);
   const [name, setName] = useState("");
   const [startedAt, setStartedAt] = useState(nowLocalInput());
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  const [closeError, setCloseError] = useState<string | null>(null);
-  const [unverifiedRooms, setUnverifiedRooms] = useState<number[] | null>(null);
-  const [busySessionId, setBusySessionId] = useState<number | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -56,9 +89,11 @@ function SessionsPageContent() {
         // backend stores the instant the Admin actually picked.
         body: { name, started_at: new Date(startedAt).toISOString() },
       });
+      toast.success(`Session "${name}" started`);
       setName("");
       setStartedAt(nowLocalInput());
-      refetch();
+      setOpen(false);
+      onCreated();
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Unable to reach the server.",
@@ -68,6 +103,72 @@ function SessionsPageContent() {
     }
   }
 
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>
+        <Plus />
+        Start session
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleCreate}>
+          <DialogHeader>
+            <DialogTitle>Start a session</DialogTitle>
+            <DialogDescription>
+              Only one session can be active at a time. Close the current one
+              before starting another.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name</Label>
+              <Input
+                id="name"
+                required
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="e.g. 2025/2026"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="started_at">Start date &amp; time</Label>
+              <Input
+                id="started_at"
+                type="datetime-local"
+                required
+                value={startedAt}
+                onChange={(e) => setStartedAt(e.target.value)}
+              />
+            </div>
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Starting…" : "Start session"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function SessionsPageContent() {
+  const {
+    data: sessions,
+    loading,
+    error: loadError,
+    refetch,
+  } = useApiResource<HostelSession[]>("/admin/sessions");
+
+  const [closeError, setCloseError] = useState<string | null>(null);
+  const [unverifiedRooms, setUnverifiedRooms] = useState<number[] | null>(null);
+  const [busySessionId, setBusySessionId] = useState<number | null>(null);
+
   async function handleClose(session: HostelSession) {
     setCloseError(null);
     setUnverifiedRooms(null);
@@ -76,6 +177,7 @@ function SessionsPageContent() {
       await apiFetch<HostelSession>(`/admin/sessions/${session.id}/close`, {
         method: "PATCH",
       });
+      toast.success(`Session "${session.name}" closed`);
       refetch();
     } catch (err) {
       if (err instanceof ApiError) {
@@ -100,149 +202,122 @@ function SessionsPageContent() {
   }
 
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
+    <AdminShell title="Sessions">
+      {closeError && (
+        <Alert variant="destructive">
+          <AlertTriangle />
+          <AlertTitle>Couldn&apos;t close the session</AlertTitle>
+          <AlertDescription>
+            <p>{closeError}</p>
+            {unverifiedRooms && unverifiedRooms.length > 0 && (
+              <p>Unverified room IDs: {unverifiedRooms.join(", ")}</p>
+            )}
+          </AlertDescription>
+        </Alert>
+      )}
 
-      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Sessions
-          </h2>
-          {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-          {loadError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {loadError}
-            </p>
-          )}
-          {closeError && (
-            <div className="mb-3 rounded-md border border-red-300 bg-red-50 p-3 text-sm dark:border-red-900 dark:bg-red-950">
-              <p className="text-red-700 dark:text-red-300">{closeError}</p>
-              {unverifiedRooms && unverifiedRooms.length > 0 && (
-                <p className="mt-1 text-red-600 dark:text-red-400">
-                  Unverified room IDs: {unverifiedRooms.join(", ")}
-                </p>
-              )}
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Sessions</CardTitle>
+            <CardDescription>
+              Every hostel session, past and present.
+            </CardDescription>
+          </div>
+          <CreateSessionDialog onCreated={refetch} />
+        </CardHeader>
+        <CardContent>
+          {loading && (
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
             </div>
           )}
+          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
           {!loading && !loadError && sessions?.length === 0 && (
-            <p className="text-sm text-zinc-500">No sessions yet.</p>
+            <p className="text-sm text-muted-foreground">No sessions yet.</p>
           )}
           {sessions && sessions.length > 0 && (
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Status</th>
-                  <th className="py-2 pr-4 font-medium">Started</th>
-                  <th className="py-2 pr-4 font-medium">Closed</th>
-                  <th className="py-2 font-medium">Action</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Started</TableHead>
+                  <TableHead>Closed</TableHead>
+                  <TableHead className="text-right">Action</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {sessions.map((session) => (
-                  <tr
-                    key={session.id}
-                    className="border-b border-zinc-100 dark:border-zinc-900"
-                  >
-                    <td className="py-2 pr-4 text-black dark:text-zinc-50">
+                  <TableRow key={session.id}>
+                    <TableCell className="font-medium">
                       {session.name}
-                    </td>
-                    <td className="py-2 pr-4">
-                      {session.status === "active" ? (
-                        <span className="text-green-700 dark:text-green-400">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400">Closed</span>
-                      )}
-                    </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant={
+                          session.status === "active" ? "secondary" : "outline"
+                        }
+                      >
+                        {session.status === "active" ? "Active" : "Closed"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {formatDate(session.started_at)}
-                    </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {formatDate(session.closed_at)}
-                    </td>
-                    <td className="py-2">
+                    </TableCell>
+                    <TableCell className="text-right">
                       {session.status === "active" && (
-                        <button
-                          type="button"
-                          onClick={() => handleClose(session)}
-                          disabled={busySessionId === session.id}
-                          className="text-xs font-medium text-red-600 underline disabled:opacity-50 dark:text-red-400"
-                        >
-                          {busySessionId === session.id ? "Closing…" : "Close"}
-                        </button>
+                        <AlertDialog>
+                          <AlertDialogTrigger
+                            render={
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                disabled={busySessionId === session.id}
+                                className="text-destructive hover:text-destructive"
+                              />
+                            }
+                          >
+                            {busySessionId === session.id
+                              ? "Closing…"
+                              : "Close"}
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>
+                                Close &quot;{session.name}&quot;?
+                              </AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Every room&apos;s baseline must already be
+                                verified. If any room isn&apos;t, closing will
+                                be rejected and the outstanding rooms listed.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancel</AlertDialogCancel>
+                              <AlertDialogAction
+                                variant="destructive"
+                                onClick={() => handleClose(session)}
+                              >
+                                Close session
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
                       )}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
-
-        <form
-          onSubmit={handleCreate}
-          className="h-fit space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-        >
-          <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Start a session
-          </h2>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="name"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Name
-            </label>
-            <input
-              id="name"
-              required
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              placeholder="e.g. 2025/2026"
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="started_at"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Start date & time
-            </label>
-            <input
-              id="started_at"
-              type="datetime-local"
-              required
-              value={startedAt}
-              onChange={(e) => setStartedAt(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          {formError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
-          >
-            {submitting ? "Starting…" : "Start session"}
-          </button>
-          <p className="text-xs text-zinc-500">
-            Only one session can be active at a time. Close the current one
-            before starting another.
-          </p>
-        </form>
-      </div>
-    </DashboardShell>
+        </CardContent>
+      </Card>
+    </AdminShell>
   );
 }
 

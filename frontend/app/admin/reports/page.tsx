@@ -1,9 +1,26 @@
 "use client";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { useApiResource } from "@/lib/useApiResource";
+import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface BaselineReportItem {
   baseline_id: number;
@@ -37,62 +54,56 @@ function BaselinesTable() {
     error,
   } = useApiResource<BaselineReportItem[]>("/admin/reports/baselines");
 
+  if (loading)
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    );
+  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (!rows || rows.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">
+        No baselines recorded yet.
+      </p>
+    );
+
   return (
-    <div className="mb-10">
-      <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        Baselines
-      </h2>
-      {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-      {!loading && !error && rows?.length === 0 && (
-        <p className="text-sm text-zinc-500">No baselines recorded yet.</p>
-      )}
-      {rows && rows.length > 0 && (
-        <table className="w-full max-w-3xl text-left text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
-              <th className="py-2 pr-4 font-medium">Room</th>
-              <th className="py-2 pr-4 font-medium">Session</th>
-              <th className="py-2 pr-4 font-medium">Recorded by</th>
-              <th className="py-2 pr-4 font-medium">Created</th>
-              <th className="py-2 font-medium">Shared confirmed</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.baseline_id}
-                className="border-b border-zinc-100 dark:border-zinc-900"
-              >
-                <td className="py-2 pr-4 text-black dark:text-zinc-50">
-                  {row.hall_name}, Room {row.room_number}
-                </td>
-                <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                  {row.session_name}
-                </td>
-                <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                  {row.created_by_name}
-                </td>
-                <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                  {new Date(row.created_at).toLocaleString()}
-                </td>
-                <td className="py-2">
-                  {row.shared_confirmed ? (
-                    <span className="text-green-700 dark:text-green-400">
-                      Yes
-                    </span>
-                  ) : (
-                    <span className="text-zinc-400">No</span>
-                  )}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Room</TableHead>
+          <TableHead>Session</TableHead>
+          <TableHead>Recorded by</TableHead>
+          <TableHead>Created</TableHead>
+          <TableHead>Shared confirmed</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow key={row.baseline_id}>
+            <TableCell className="font-medium">
+              {row.hall_name}, Room {row.room_number}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {row.session_name}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {row.created_by_name}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {new Date(row.created_at).toLocaleString()}
+            </TableCell>
+            <TableCell>
+              <Badge variant={row.shared_confirmed ? "secondary" : "outline"}>
+                {row.shared_confirmed ? "Yes" : "No"}
+              </Badge>
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -103,68 +114,81 @@ function VerificationsTable() {
     error,
   } = useApiResource<VerificationReportItem[]>("/admin/reports/verifications");
 
+  if (loading)
+    return (
+      <div className="space-y-2">
+        <Skeleton className="h-9 w-full" />
+        <Skeleton className="h-9 w-full" />
+      </div>
+    );
+  if (error) return <p className="text-sm text-destructive">{error}</p>;
+  if (!rows || rows.length === 0)
+    return (
+      <p className="text-sm text-muted-foreground">
+        No verifications recorded yet.
+      </p>
+    );
+
   return (
-    <div>
-      <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        Verifications
-      </h2>
-      {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-      {!loading && !error && rows?.length === 0 && (
-        <p className="text-sm text-zinc-500">No verifications recorded yet.</p>
-      )}
-      {rows && rows.length > 0 && (
-        <table className="w-full max-w-3xl text-left text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
-              <th className="py-2 pr-4 font-medium">Room</th>
-              <th className="py-2 pr-4 font-medium">Session</th>
-              <th className="py-2 pr-4 font-medium">Flagged items</th>
-              <th className="py-2 font-medium">Verified</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((row) => (
-              <tr
-                key={row.verification_id}
-                className="border-b border-zinc-100 dark:border-zinc-900"
-              >
-                <td className="py-2 pr-4 text-black dark:text-zinc-50">
-                  {row.hall_name}, Room {row.room_number}
-                </td>
-                <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                  {row.session_name}
-                </td>
-                <td
-                  className={
-                    row.flagged_count > 0
-                      ? "py-2 pr-4 text-amber-600 dark:text-amber-400"
-                      : "py-2 pr-4 text-green-700 dark:text-green-400"
-                  }
-                >
-                  {row.flagged_count}
-                </td>
-                <td className="py-2 text-zinc-600 dark:text-zinc-400">
-                  {new Date(row.verified_at).toLocaleString()}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </div>
+    <Table>
+      <TableHeader>
+        <TableRow>
+          <TableHead>Room</TableHead>
+          <TableHead>Session</TableHead>
+          <TableHead>Flagged items</TableHead>
+          <TableHead>Verified</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {rows.map((row) => (
+          <TableRow key={row.verification_id}>
+            <TableCell className="font-medium">
+              {row.hall_name}, Room {row.room_number}
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {row.session_name}
+            </TableCell>
+            <TableCell>
+              <Badge variant={row.flagged_count > 0 ? "default" : "secondary"}>
+                {row.flagged_count}
+              </Badge>
+            </TableCell>
+            <TableCell className="text-muted-foreground">
+              {new Date(row.verified_at).toLocaleString()}
+            </TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
 function ReportsContent() {
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
-      <BaselinesTable />
-      <VerificationsTable />
-    </DashboardShell>
+    <AdminShell title="Reports">
+      <Card>
+        <CardHeader>
+          <CardTitle>Reports</CardTitle>
+          <CardDescription>
+            Every baseline and verification recorded across all sessions.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="baselines">
+            <TabsList>
+              <TabsTrigger value="baselines">Baselines</TabsTrigger>
+              <TabsTrigger value="verifications">Verifications</TabsTrigger>
+            </TabsList>
+            <TabsContent value="baselines">
+              <BaselinesTable />
+            </TabsContent>
+            <TabsContent value="verifications">
+              <VerificationsTable />
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
+    </AdminShell>
   );
 }
 

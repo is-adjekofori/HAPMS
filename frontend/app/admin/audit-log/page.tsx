@@ -3,9 +3,26 @@
 import { useEffect, useState } from "react";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { apiFetch, ApiError } from "@/lib/api";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 const PAGE_SIZE = 50;
 
@@ -78,56 +95,73 @@ function AuditLogContent() {
   }
 
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
-      <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        Audit Trail
-      </h2>
-      {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-      {!loading && !error && entries.length === 0 && (
-        <p className="text-sm text-zinc-500">No activity recorded yet.</p>
-      )}
-      {entries.length > 0 && (
-        <div className="max-w-3xl">
-          <div className="grid grid-cols-[150px_120px_1fr_170px] gap-3 border-b border-zinc-200 pb-1 text-xs font-medium text-zinc-500 dark:border-zinc-800">
-            <span>When</span>
-            <span>Who</span>
-            <span>What</span>
-            <span>Action</span>
-          </div>
-          {entries.map((entry) => (
-            <div
-              key={entry.id}
-              className="grid grid-cols-[150px_120px_1fr_170px] gap-3 border-b border-zinc-100 py-2 text-sm dark:border-zinc-900"
-            >
-              <span className="text-zinc-500">
-                {new Date(entry.created_at).toLocaleString()}
-              </span>
-              <span className="text-zinc-600 dark:text-zinc-400">
-                {entry.user_name ?? "—"}
-              </span>
-              <span className="text-black dark:text-zinc-50">
-                {entry.description ?? "—"}
-              </span>
-              <span className="text-xs text-zinc-400">{entry.action}</span>
+    <AdminShell title="Audit Log">
+      <Card>
+        <CardHeader>
+          <CardTitle>Audit Trail</CardTitle>
+          <CardDescription>
+            Every action taken across the system, most recent first.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loading && (
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
             </div>
-          ))}
-          {hasMore && (
-            <button
-              type="button"
-              onClick={loadMore}
-              disabled={loadingMore}
-              className="mt-4 rounded-md border border-zinc-300 px-4 py-1.5 text-sm font-medium text-black disabled:opacity-50 dark:border-zinc-700 dark:text-zinc-50"
-            >
-              {loadingMore ? "Loading…" : "Load more"}
-            </button>
           )}
-        </div>
-      )}
-    </DashboardShell>
+          {error && <p className="text-sm text-destructive">{error}</p>}
+          {!loading && !error && entries.length === 0 && (
+            <p className="text-sm text-muted-foreground">
+              No activity recorded yet.
+            </p>
+          )}
+          {entries.length > 0 && (
+            <>
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>When</TableHead>
+                    <TableHead>Who</TableHead>
+                    <TableHead>What</TableHead>
+                    <TableHead>Action</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {entries.map((entry) => (
+                    <TableRow key={entry.id}>
+                      <TableCell className="whitespace-nowrap text-muted-foreground">
+                        {new Date(entry.created_at).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {entry.user_name ?? "—"}
+                      </TableCell>
+                      <TableCell>{entry.description ?? "—"}</TableCell>
+                      <TableCell>
+                        <Badge variant="outline" className="font-mono text-xs">
+                          {entry.action}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              {hasMore && (
+                <Button
+                  variant="outline"
+                  className="mt-4"
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                >
+                  {loadingMore ? "Loading…" : "Load more"}
+                </Button>
+              )}
+            </>
+          )}
+        </CardContent>
+      </Card>
+    </AdminShell>
   );
 }
 

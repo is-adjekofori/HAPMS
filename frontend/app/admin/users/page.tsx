@@ -1,12 +1,62 @@
 "use client";
 
 import { useState } from "react";
+import { KeyRound, Plus, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 type Role = "porter" | "student";
 
@@ -14,6 +64,12 @@ const ROLE_OPTIONS: { value: Role; label: string }[] = [
   { value: "porter", label: "Porter" },
   { value: "student", label: "Student" },
 ];
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Admin",
+  porter: "Porter",
+  student: "Student",
+};
 
 interface User {
   id: number;
@@ -32,29 +88,17 @@ interface ResetPasswordResponse {
   temporary_password: string;
 }
 
-function UsersPageContent() {
-  const {
-    data: users,
-    loading,
-    error: loadError,
-    refetch,
-  } = useApiResource<User[]>("/admin/users");
-
+function CreateUserDialog({
+  onCreated,
+}: {
+  onCreated: (c: Credential) => void;
+}) {
+  const [open, setOpen] = useState(false);
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [role, setRole] = useState<Role>("porter");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-
-  // The temporary password is only ever returned once (on create or reset).
-  // Hold it here so the Admin can relay it before it's gone — there is no
-  // email delivery in this phase.
-  const [credential, setCredential] = useState<{
-    email: string;
-    password: string;
-  } | null>(null);
-  const [rowError, setRowError] = useState<string | null>(null);
-  const [busyUserId, setBusyUserId] = useState<number | null>(null);
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -65,14 +109,14 @@ function UsersPageContent() {
         method: "POST",
         body: { full_name: fullName, email, role },
       });
-      setCredential({
-        email: created.email,
-        password: created.temporary_password,
-      });
+      onCreated({ email: created.email, password: created.temporary_password });
+      toast.success(
+        `${ROLE_LABELS[role]} account created for ${created.email}`,
+      );
       setFullName("");
       setEmail("");
       setRole("porter");
-      refetch();
+      setOpen(false);
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Unable to reach the server.",
@@ -82,16 +126,110 @@ function UsersPageContent() {
     }
   }
 
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>
+        <Plus />
+        Add user
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleCreate}>
+          <DialogHeader>
+            <DialogTitle>Add a user</DialogTitle>
+            <DialogDescription>
+              Only Porter and Student accounts are created here. A one-time
+              temporary password is shown after creation.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="full_name">Full name</Label>
+              <Input
+                id="full_name"
+                required
+                value={fullName}
+                onChange={(e) => setFullName(e.target.value)}
+                placeholder="e.g. Jane Doe"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="e.g. jane@uniben.edu"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="role">Role</Label>
+              <Select
+                value={role}
+                onValueChange={(v) => setRole((v ?? "porter") as Role)}
+              >
+                <SelectTrigger id="role" className="w-full">
+                  <SelectValue>
+                    {(value: Role) => ROLE_LABELS[value] ?? value}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLE_OPTIONS.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Adding…" : "Add user"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+interface Credential {
+  email: string;
+  password: string;
+}
+
+function UsersPageContent() {
+  const {
+    data: users,
+    loading,
+    error: loadError,
+    refetch,
+  } = useApiResource<User[]>("/admin/users");
+
+  // The temporary password is only ever returned once (on create or reset).
+  // Hold it here so the Admin can relay it before it's gone — there is no
+  // email delivery in this phase.
+  const [credential, setCredential] = useState<Credential | null>(null);
+  const [busyUserId, setBusyUserId] = useState<number | null>(null);
+
   async function handleDeactivate(user: User) {
-    setRowError(null);
     setBusyUserId(user.id);
     try {
       await apiFetch<User>(`/admin/users/${user.id}/deactivate`, {
         method: "PATCH",
       });
+      toast.success(`${user.full_name} deactivated`);
       refetch();
     } catch (err) {
-      setRowError(
+      toast.error(
         err instanceof ApiError ? err.message : "Unable to reach the server.",
       );
     } finally {
@@ -100,19 +238,15 @@ function UsersPageContent() {
   }
 
   async function handleReset(user: User) {
-    setRowError(null);
     setBusyUserId(user.id);
     try {
       const result = await apiFetch<ResetPasswordResponse>(
         `/auth/reset-password/${user.id}`,
         { method: "POST" },
       );
-      setCredential({
-        email: user.email,
-        password: result.temporary_password,
-      });
+      setCredential({ email: user.email, password: result.temporary_password });
     } catch (err) {
-      setRowError(
+      toast.error(
         err instanceof ApiError ? err.message : "Unable to reach the server.",
       );
     } finally {
@@ -121,193 +255,136 @@ function UsersPageContent() {
   }
 
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
-
+    <AdminShell title="Users">
       {credential && (
-        <div className="mb-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm dark:border-amber-800 dark:bg-amber-950">
-          <p className="font-medium text-amber-900 dark:text-amber-200">
+        <Alert className="border-amber-300 bg-amber-50 dark:border-amber-900 dark:bg-amber-950">
+          <KeyRound className="text-amber-600 dark:text-amber-400" />
+          <AlertTitle className="text-amber-900 dark:text-amber-200">
             Temporary password for {credential.email}
-          </p>
-          <p className="mt-1 text-amber-800 dark:text-amber-300">
+          </AlertTitle>
+          <AlertDescription className="text-amber-800 dark:text-amber-300">
             Relay this now — it won&apos;t be shown again:{" "}
             <code className="rounded bg-amber-100 px-1.5 py-0.5 font-mono dark:bg-amber-900">
               {credential.password}
             </code>
-          </p>
-          <button
-            type="button"
+          </AlertDescription>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-2 right-2 size-6 text-amber-700 hover:bg-amber-100 dark:text-amber-400 dark:hover:bg-amber-900"
             onClick={() => setCredential(null)}
-            className="mt-2 text-xs font-medium text-amber-700 underline dark:text-amber-400"
           >
-            Dismiss
-          </button>
-        </div>
+            <X className="size-4" />
+          </Button>
+        </Alert>
       )}
 
-      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Users
-          </h2>
-          {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-          {loadError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {loadError}
-            </p>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Users</CardTitle>
+            <CardDescription>
+              Porter and Student accounts. Admins are provisioned separately.
+            </CardDescription>
+          </div>
+          <CreateUserDialog onCreated={setCredential} />
+        </CardHeader>
+        <CardContent>
+          {loading && (
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
           )}
-          {rowError && (
-            <p className="mb-2 text-sm text-red-600 dark:text-red-400">
-              {rowError}
-            </p>
-          )}
+          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
           {!loading && !loadError && users?.length === 0 && (
-            <p className="text-sm text-zinc-500">No users yet.</p>
+            <p className="text-sm text-muted-foreground">No users yet.</p>
           )}
           {users && users.length > 0 && (
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
-                  <th className="py-2 pr-4 font-medium">Name</th>
-                  <th className="py-2 pr-4 font-medium">Email</th>
-                  <th className="py-2 pr-4 font-medium">Role</th>
-                  <th className="py-2 pr-4 font-medium">Status</th>
-                  <th className="py-2 font-medium">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Email</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {users.map((user) => (
-                  <tr
-                    key={user.id}
-                    className="border-b border-zinc-100 dark:border-zinc-900"
-                  >
-                    <td className="py-2 pr-4 text-black dark:text-zinc-50">
+                  <TableRow key={user.id}>
+                    <TableCell className="font-medium">
                       {user.full_name}
-                    </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {user.email}
-                    </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                      {user.role}
-                    </td>
-                    <td className="py-2 pr-4">
-                      {user.is_active ? (
-                        <span className="text-green-700 dark:text-green-400">
-                          Active
-                        </span>
-                      ) : (
-                        <span className="text-zinc-400">Inactive</span>
-                      )}
-                    </td>
-                    <td className="py-2">
-                      <div className="flex gap-3">
-                        <button
-                          type="button"
-                          onClick={() => handleReset(user)}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {ROLE_LABELS[user.role] ?? user.role}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={user.is_active ? "secondary" : "outline"}>
+                        {user.is_active ? "Active" : "Inactive"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           disabled={busyUserId === user.id}
-                          className="text-xs font-medium text-zinc-600 underline disabled:opacity-50 dark:text-zinc-400"
+                          onClick={() => handleReset(user)}
                         >
                           Reset password
-                        </button>
+                        </Button>
                         {user.is_active && user.role !== "admin" && (
-                          <button
-                            type="button"
-                            onClick={() => handleDeactivate(user)}
-                            disabled={busyUserId === user.id}
-                            className="text-xs font-medium text-red-600 underline disabled:opacity-50 dark:text-red-400"
-                          >
-                            Deactivate
-                          </button>
+                          <AlertDialog>
+                            <AlertDialogTrigger
+                              render={
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  disabled={busyUserId === user.id}
+                                  className="text-destructive hover:text-destructive"
+                                />
+                              }
+                            >
+                              Deactivate
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>
+                                  Deactivate {user.full_name}?
+                                </AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  They will no longer be able to log in. This
+                                  can&apos;t be undone from here.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                                <AlertDialogAction
+                                  variant="destructive"
+                                  onClick={() => handleDeactivate(user)}
+                                >
+                                  Deactivate
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
-
-        <form
-          onSubmit={handleCreate}
-          className="h-fit space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-        >
-          <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Add a user
-          </h2>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="full_name"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Full name
-            </label>
-            <input
-              id="full_name"
-              required
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="e.g. Jane Doe"
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="email"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Email
-            </label>
-            <input
-              id="email"
-              type="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="e.g. jane@uniben.edu"
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="role"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Role
-            </label>
-            <select
-              id="role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as Role)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              {ROLE_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          {formError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
-          >
-            {submitting ? "Adding…" : "Add user"}
-          </button>
-        </form>
-      </div>
-    </DashboardShell>
+        </CardContent>
+      </Card>
+    </AdminShell>
   );
 }
 

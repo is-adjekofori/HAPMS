@@ -1,12 +1,30 @@
 "use client";
 
 import { useState } from "react";
+import { Check, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface Hall {
   id: number;
@@ -52,6 +70,7 @@ function PorterAssignmentsContent() {
   const porters = (users ?? []).filter(
     (user) => user.role === "porter" && user.is_active,
   );
+  const portersById = new Map(porters.map((p) => [String(p.id), p]));
 
   function toggleRoom(roomId: number) {
     setSelectedRooms((prev) => {
@@ -79,6 +98,7 @@ function PorterAssignmentsContent() {
     setSubmitting(true);
     const roomIds = Array.from(selectedRooms);
     const outcomes: string[] = [];
+    let successCount = 0;
     // The API assigns one room at a time; issue them sequentially so each
     // room's success/failure (e.g. a 409 duplicate) is reported individually.
     for (const roomId of roomIds) {
@@ -90,6 +110,7 @@ function PorterAssignmentsContent() {
           body: { porter_id: Number(porterId), room_id: roomId },
         });
         outcomes.push(`✓ ${label}`);
+        successCount += 1;
       } catch (err) {
         const message =
           err instanceof ApiError ? err.message : "Unable to reach the server.";
@@ -99,105 +120,119 @@ function PorterAssignmentsContent() {
     setResults(outcomes);
     setSelectedRooms(new Set());
     setSubmitting(false);
+    if (successCount > 0) {
+      toast.success(
+        `Assigned ${successCount} room${successCount === 1 ? "" : "s"} to ${portersById.get(porterId)?.full_name ?? "porter"}`,
+      );
+    }
   }
 
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
-
-      <form onSubmit={handleAssign} className="max-w-2xl space-y-5">
-        <div className="space-y-1">
-          <label
-            htmlFor="porter"
-            className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-          >
-            Porter
-          </label>
-          <select
-            id="porter"
-            value={porterId}
-            onChange={(e) => setPorterId(e.target.value)}
-            className="w-full max-w-sm rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          >
-            <option value="">Select a porter…</option>
-            {porters.map((porter) => (
-              <option key={porter.id} value={porter.id}>
-                {porter.full_name} ({porter.email})
-              </option>
-            ))}
-          </select>
-          {!usersLoading && porters.length === 0 && (
-            <p className="text-xs text-zinc-500">
-              No active porters yet — add one on the Users page first.
-            </p>
-          )}
-        </div>
-
-        <div className="space-y-2">
-          <p className="text-xs font-medium text-zinc-600 dark:text-zinc-400">
-            Rooms ({selectedRooms.size} selected)
-          </p>
-          {roomsLoading && <p className="text-sm text-zinc-500">Loading…</p>}
-          {!roomsLoading && rooms?.length === 0 && (
-            <p className="text-sm text-zinc-500">
-              No rooms yet — add rooms on the Rooms page first.
-            </p>
-          )}
-          {rooms && rooms.length > 0 && (
-            <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border border-zinc-200 p-3 dark:border-zinc-800">
-              {rooms.map((room) => (
-                <label
-                  key={room.id}
-                  className="flex cursor-pointer items-center gap-2 rounded px-2 py-1 text-sm hover:bg-zinc-50 dark:hover:bg-zinc-900"
-                >
-                  <input
-                    type="checkbox"
-                    checked={selectedRooms.has(room.id)}
-                    onChange={() => toggleRoom(room.id)}
-                    className="h-4 w-4"
-                  />
-                  <span className="text-zinc-700 dark:text-zinc-300">
-                    {roomLabel(room, hallsById)}
-                  </span>
-                </label>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {formError && (
-          <p className="text-sm text-red-600 dark:text-red-400">{formError}</p>
-        )}
-
-        {results && (
-          <div className="space-y-1 rounded-lg border border-zinc-200 p-3 text-sm dark:border-zinc-800">
-            <p className="font-medium text-zinc-700 dark:text-zinc-300">
-              Assignment results
-            </p>
-            {results.map((line, i) => (
-              <p
-                key={i}
-                className={
-                  line.startsWith("✓")
-                    ? "text-green-700 dark:text-green-400"
-                    : "text-red-600 dark:text-red-400"
-                }
+    <AdminShell title="Porter Assignments">
+      <Card className="max-w-2xl">
+        <CardHeader>
+          <CardTitle>Assign rooms to a porter</CardTitle>
+          <CardDescription>
+            A porter only ever sees and acts on rooms assigned to them here.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAssign} className="space-y-5">
+            <div className="grid gap-2">
+              <Label htmlFor="porter">Porter</Label>
+              <Select
+                value={porterId}
+                onValueChange={(v) => setPorterId(v ?? "")}
               >
-                {line}
-              </p>
-            ))}
-          </div>
-        )}
+                <SelectTrigger id="porter" className="w-full">
+                  <SelectValue placeholder="Select a porter…">
+                    {(value: string) => {
+                      const p = portersById.get(value);
+                      return p
+                        ? `${p.full_name} (${p.email})`
+                        : "Select a porter…";
+                    }}
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {porters.map((porter) => (
+                    <SelectItem key={porter.id} value={String(porter.id)}>
+                      {porter.full_name} ({porter.email})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              {!usersLoading && porters.length === 0 && (
+                <p className="text-xs text-muted-foreground">
+                  No active porters yet — add one on the Users page first.
+                </p>
+              )}
+            </div>
 
-        <button
-          type="submit"
-          disabled={submitting}
-          className="rounded-md bg-black px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
-        >
-          {submitting ? "Assigning…" : "Assign rooms"}
-        </button>
-      </form>
-    </DashboardShell>
+            <div className="space-y-2">
+              <p className="text-sm font-medium">
+                Rooms ({selectedRooms.size} selected)
+              </p>
+              {roomsLoading && (
+                <p className="text-sm text-muted-foreground">Loading…</p>
+              )}
+              {!roomsLoading && rooms?.length === 0 && (
+                <p className="text-sm text-muted-foreground">
+                  No rooms yet — add rooms on the Rooms page first.
+                </p>
+              )}
+              {rooms && rooms.length > 0 && (
+                <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border p-3">
+                  {rooms.map((room) => (
+                    <label
+                      key={room.id}
+                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent"
+                    >
+                      <Checkbox
+                        checked={selectedRooms.has(room.id)}
+                        onCheckedChange={() => toggleRoom(room.id)}
+                      />
+                      <span>{roomLabel(room, hallsById)}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+
+            {results && (
+              <div className="space-y-1 rounded-lg border p-3 text-sm">
+                <p className="font-medium">Assignment results</p>
+                {results.map((line, i) => (
+                  <p
+                    key={i}
+                    className={
+                      line.startsWith("✓")
+                        ? "flex items-center gap-1.5 text-green-700 dark:text-green-400"
+                        : "flex items-center gap-1.5 text-destructive"
+                    }
+                  >
+                    {line.startsWith("✓") ? (
+                      <Check className="size-3.5 shrink-0" />
+                    ) : (
+                      <X className="size-3.5 shrink-0" />
+                    )}
+                    {line.slice(2)}
+                  </p>
+                ))}
+              </div>
+            )}
+
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Assigning…" : "Assign rooms"}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+    </AdminShell>
   );
 }
 
