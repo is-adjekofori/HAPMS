@@ -1,9 +1,12 @@
 "use client";
 
+import { AlertTriangle, DoorOpen, UserCheck } from "lucide-react";
+
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { useApiResource } from "@/lib/useApiResource";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface DashboardSummary {
   total_rooms: number;
@@ -11,16 +14,35 @@ interface DashboardSummary {
   pending_signoff_count: number;
 }
 
-function StatTile({ label, value }: { label: string; value: number }) {
+function StatCard({
+  label,
+  value,
+  icon: Icon,
+  tone,
+}: {
+  label: string;
+  value: number;
+  icon: React.ElementType;
+  tone: "neutral" | "warning";
+}) {
   return (
-    <div className="rounded-md border border-zinc-200 px-5 py-4 dark:border-zinc-800">
-      <p className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-        {label}
-      </p>
-      <p className="mt-1 text-3xl font-semibold text-black dark:text-zinc-50">
-        {value}
-      </p>
-    </div>
+    <Card>
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          {label}
+        </CardTitle>
+        <Icon
+          className={
+            tone === "warning" && value > 0
+              ? "size-4 text-amber-500"
+              : "size-4 text-muted-foreground"
+          }
+        />
+      </CardHeader>
+      <CardContent>
+        <div className="text-3xl font-semibold tracking-tight">{value}</div>
+      </CardContent>
+    </Card>
   );
 }
 
@@ -32,26 +54,38 @@ function DashboardContent() {
   } = useApiResource<DashboardSummary>("/admin/dashboard/summary");
 
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
-      {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
+    <AdminShell title="Dashboard">
+      {loading && (
+        <div className="grid gap-4 sm:grid-cols-3">
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} className="h-28 rounded-xl" />
+          ))}
+        </div>
       )}
+      {error && <p className="text-sm text-destructive">{error}</p>}
       {summary && (
-        <div className="flex max-w-2xl gap-4">
-          <StatTile label="Total rooms" value={summary.total_rooms} />
-          <StatTile
+        <div className="grid gap-4 sm:grid-cols-3">
+          <StatCard
+            label="Total rooms"
+            value={summary.total_rooms}
+            icon={DoorOpen}
+            tone="neutral"
+          />
+          <StatCard
             label="Flagged asset problems"
             value={summary.total_flagged_issues}
+            icon={AlertTriangle}
+            tone="warning"
           />
-          <StatTile
+          <StatCard
             label="Pending sign-offs"
             value={summary.pending_signoff_count}
+            icon={UserCheck}
+            tone="warning"
           />
         </div>
       )}
-    </DashboardShell>
+    </AdminShell>
   );
 }
 

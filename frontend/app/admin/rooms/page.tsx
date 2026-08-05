@@ -1,12 +1,49 @@
 "use client";
 
 import { useState } from "react";
+import { Plus } from "lucide-react";
+import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
-import { AdminNav } from "@/components/AdminNav";
+import { AdminShell } from "@/components/AdminShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface Hall {
   id: number;
@@ -25,22 +62,21 @@ interface Room {
   created_at: string;
 }
 
-function RoomsPageContent() {
-  const { data: halls } = useApiResource<Hall[]>("/admin/halls");
-  const {
-    data: rooms,
-    loading,
-    error: loadError,
-    refetch,
-  } = useApiResource<Room[]>("/admin/rooms");
-
+function CreateRoomDialog({
+  halls,
+  onCreated,
+}: {
+  halls: Hall[];
+  onCreated: () => void;
+}) {
+  const [open, setOpen] = useState(false);
   const [hallId, setHallId] = useState<string>("");
   const [roomNumber, setRoomNumber] = useState("");
   const [cornerLabel, setCornerLabel] = useState("");
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const hallsById = new Map((halls ?? []).map((hall) => [hall.id, hall]));
+  const hallsById = new Map(halls.map((hall) => [hall.id, hall]));
 
   async function handleCreate(e: React.FormEvent) {
     e.preventDefault();
@@ -61,9 +97,12 @@ function RoomsPageContent() {
           corner_label: cornerLabel.trim() === "" ? null : cornerLabel.trim(),
         },
       });
+      toast.success(`Room "${roomNumber}" created`);
+      setHallId("");
       setRoomNumber("");
       setCornerLabel("");
-      refetch();
+      setOpen(false);
+      onCreated();
     } catch (err) {
       setFormError(
         err instanceof ApiError ? err.message : "Unable to reach the server.",
@@ -74,137 +113,144 @@ function RoomsPageContent() {
   }
 
   return (
-    <DashboardShell title="Administrator Dashboard">
-      <AdminNav />
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger render={<Button />}>
+        <Plus />
+        Add room
+      </DialogTrigger>
+      <DialogContent>
+        <form onSubmit={handleCreate}>
+          <DialogHeader>
+            <DialogTitle>Add a room</DialogTitle>
+            <DialogDescription>
+              Capacity is derived automatically from the hall type.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="hall">Hall</Label>
+              <Select value={hallId} onValueChange={(v) => setHallId(v ?? "")}>
+                <SelectTrigger id="hall" className="w-full">
+                  <SelectValue placeholder="Select a hall…">
+                    {(value: string) =>
+                      hallsById.get(Number(value))?.name ?? "Select a hall…"
+                    }
+                  </SelectValue>
+                </SelectTrigger>
+                <SelectContent>
+                  {halls.map((hall) => (
+                    <SelectItem key={hall.id} value={String(hall.id)}>
+                      {hall.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="room_number">Room number</Label>
+              <Input
+                id="room_number"
+                required
+                value={roomNumber}
+                onChange={(e) => setRoomNumber(e.target.value)}
+                placeholder="e.g. 12"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="corner_label">Corner label (Hall 7 only)</Label>
+              <Input
+                id="corner_label"
+                value={cornerLabel}
+                onChange={(e) => setCornerLabel(e.target.value)}
+                placeholder="e.g. A"
+              />
+            </div>
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+          </div>
+          <DialogFooter>
+            <DialogClose render={<Button type="button" variant="outline" />}>
+              Cancel
+            </DialogClose>
+            <Button type="submit" disabled={submitting}>
+              {submitting ? "Adding…" : "Add room"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
-      <div className="grid gap-8 md:grid-cols-[minmax(0,1fr)_320px]">
-        <div>
-          <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Rooms
-          </h2>
-          {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-          {loadError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {loadError}
-            </p>
+function RoomsPageContent() {
+  const { data: halls } = useApiResource<Hall[]>("/admin/halls");
+  const {
+    data: rooms,
+    loading,
+    error: loadError,
+    refetch,
+  } = useApiResource<Room[]>("/admin/rooms");
+
+  const hallsById = new Map((halls ?? []).map((hall) => [hall.id, hall]));
+
+  return (
+    <AdminShell title="Rooms">
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <div>
+            <CardTitle>Rooms</CardTitle>
+            <CardDescription>
+              Every room, scoped to a hall, with its derived capacity.
+            </CardDescription>
+          </div>
+          <CreateRoomDialog halls={halls ?? []} onCreated={refetch} />
+        </CardHeader>
+        <CardContent>
+          {loading && (
+            <div className="space-y-2">
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+              <Skeleton className="h-9 w-full" />
+            </div>
           )}
+          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
           {!loading && !loadError && rooms?.length === 0 && (
-            <p className="text-sm text-zinc-500">No rooms yet.</p>
+            <p className="text-sm text-muted-foreground">No rooms yet.</p>
           )}
           {rooms && rooms.length > 0 && (
-            <table className="w-full text-left text-sm">
-              <thead>
-                <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
-                  <th className="py-2 pr-4 font-medium">Hall</th>
-                  <th className="py-2 pr-4 font-medium">Room</th>
-                  <th className="py-2 pr-4 font-medium">Corner</th>
-                  <th className="py-2 font-medium">Capacity</th>
-                </tr>
-              </thead>
-              <tbody>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Hall</TableHead>
+                  <TableHead>Room</TableHead>
+                  <TableHead>Corner</TableHead>
+                  <TableHead>Capacity</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {rooms.map((room) => (
-                  <tr
-                    key={room.id}
-                    className="border-b border-zinc-100 dark:border-zinc-900"
-                  >
-                    <td className="py-2 pr-4 text-black dark:text-zinc-50">
+                  <TableRow key={room.id}>
+                    <TableCell className="font-medium">
                       {hallsById.get(room.hall_id)?.name ?? `#${room.hall_id}`}
-                    </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {room.room_number}
-                    </td>
-                    <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {room.corner_label ?? "—"}
-                    </td>
-                    <td className="py-2 text-zinc-600 dark:text-zinc-400">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {room.capacity}
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           )}
-        </div>
-
-        <form
-          onSubmit={handleCreate}
-          className="h-fit space-y-3 rounded-lg border border-zinc-200 p-4 dark:border-zinc-800"
-        >
-          <h2 className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Add a room
-          </h2>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="hall"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Hall
-            </label>
-            <select
-              id="hall"
-              value={hallId}
-              onChange={(e) => setHallId(e.target.value)}
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            >
-              <option value="">Select a hall…</option>
-              {(halls ?? []).map((hall) => (
-                <option key={hall.id} value={hall.id}>
-                  {hall.name}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="room_number"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Room number
-            </label>
-            <input
-              id="room_number"
-              required
-              value={roomNumber}
-              onChange={(e) => setRoomNumber(e.target.value)}
-              placeholder="e.g. 12"
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          <div className="space-y-1">
-            <label
-              htmlFor="corner_label"
-              className="text-xs font-medium text-zinc-600 dark:text-zinc-400"
-            >
-              Corner label (Hall 7 only)
-            </label>
-            <input
-              id="corner_label"
-              value={cornerLabel}
-              onChange={(e) => setCornerLabel(e.target.value)}
-              placeholder="e.g. A"
-              className="w-full rounded-md border border-zinc-300 px-3 py-1.5 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-            />
-          </div>
-
-          {formError && (
-            <p className="text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="w-full rounded-md bg-black px-3 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
-          >
-            {submitting ? "Adding…" : "Add room"}
-          </button>
-        </form>
-      </div>
-    </DashboardShell>
+        </CardContent>
+      </Card>
+    </AdminShell>
   );
 }
 
