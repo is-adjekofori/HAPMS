@@ -21,6 +21,22 @@ component/data-flow diagram and `docs/TASKS.md` for how each phase built on the 
 - **Frontend:** Next.js (App Router) + TypeScript + Tailwind CSS
 - **Database:** MySQL 8.4
 
+## Quickstart: everything in one command
+
+```bash
+docker compose up -d --build   # or: podman compose up -d --build
+```
+
+This builds and starts all three services — MySQL, the backend (running migrations and the
+structural seed automatically on boot), and the frontend — from the defaults in `.env.example`.
+Once it's up: frontend at `http://localhost:3000`, API at `http://localhost:8000` (health check at
+`/health`). You still need to create your first Admin account directly against the database (see
+"Migrations and seed data in production" below) — there's no self-registration for any role.
+
+Everything below this point is the equivalent **manual, per-service setup** — useful for active
+development (hot reload, debugging, running tests), where the one-command path above isn't as
+convenient. Skip to "Seed data" if you used the one-command path.
+
 ## Prerequisites
 
 - [uv](https://docs.astral.sh/uv/getting-started/installation/)
@@ -32,7 +48,7 @@ component/data-flow diagram and `docs/TASKS.md` for how each phase built on the 
 From the repo root:
 
 ```bash
-docker compose up -d   # or: podman compose up -d
+docker compose up -d mysql   # or: podman compose up -d mysql
 ```
 
 This starts MySQL 8.4 on `localhost:3306` with the credentials in `.env.example` (copy to `.env` at
@@ -105,9 +121,11 @@ cleans them up itself, so the suite is safe to re-run without touching the datab
 ```
 backend/    FastAPI app (app/core, app/models, app/schemas, app/routers, app/services, app/seed)
             backend/tests/  pytest suite (unit + integration against the real dev DB)
+            backend/Dockerfile, docker-entrypoint.sh  container image (migrate + seed + serve)
 frontend/   Next.js app (app/, lib/, components/)
+            frontend/Dockerfile  standalone-output container image
 docs/       BRD.md, TECHNICAL_MVP.md, TASKS.md (source requirements + task tracker)
-docker-compose.yml   Local MySQL service
+docker-compose.yml   Full local stack: MySQL, backend, frontend
 ```
 
 ## Deployment
@@ -115,6 +133,10 @@ docker-compose.yml   Local MySQL service
 The app is built to be host-agnostic: everything environment-specific is read from env vars, nothing
 is hardcoded to `localhost`. Deploying anywhere that can run a Python ASGI app, a Node server (or
 static export), and a MySQL 8.4-compatible database comes down to setting these correctly.
+`backend/Dockerfile` and `frontend/Dockerfile` (used by the root `docker-compose.yml`) are a working
+starting point for a container-based deployment, but are dev/demo images, not production-hardened —
+in particular, the backend image re-runs migrations and the structural seed on every container start,
+which is convenient locally but not something you'd want unconditionally in production.
 
 ### Environment variables
 

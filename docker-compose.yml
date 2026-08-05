@@ -27,5 +27,39 @@ services:
       timeout: 5s
       retries: 10
 
+  # Dev/demo convenience — runs migrations + the structural seed on every
+  # start, then serves the API. Not a production image; see README.md's
+  # "Deployment" section.
+  backend:
+    build:
+      context: ./backend
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      APP_NAME: HAPMS API
+      ENVIRONMENT: development
+      DATABASE_URL: mysql+pymysql://${MYSQL_USER:-hapms}:${MYSQL_PASSWORD:-hapms}@mysql:3306/${MYSQL_DATABASE:-hapms}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-only-1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b}
+      JWT_EXPIRY_MINUTES: ${JWT_EXPIRY_MINUTES:-480}
+      CORS_ORIGINS: '["http://localhost:${FRONTEND_PORT:-3000}"]'
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        # Baked in at build time (browser-exposed env vars can't be injected
+        # at container start) — must be the browser-reachable backend URL,
+        # not the internal `backend:8000` compose hostname.
+        NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+    restart: unless-stopped
+    depends_on:
+      - backend
+    ports:
+      - "${FRONTEND_PORT:-3000}:3000"
+
 volumes:
   mysql_data:
