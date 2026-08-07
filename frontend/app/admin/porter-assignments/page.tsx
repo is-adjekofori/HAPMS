@@ -5,26 +5,11 @@ import { Check, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { AdminShell } from "@/components/AdminShell";
+import { AppShell } from "@/components/AppShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 interface Hall {
   id: number;
@@ -53,6 +38,15 @@ function roomLabel(room: Room, hallsById: Map<number, Hall>): string {
   return `${hall} / ${room.room_number}${corner}`;
 }
 
+function initials(name: string): string {
+  return name
+    .split(" ")
+    .map((p) => p[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+}
+
 function PorterAssignmentsContent() {
   const { data: halls } = useApiResource<Hall[]>("/admin/halls");
   const { data: rooms, loading: roomsLoading } =
@@ -71,6 +65,7 @@ function PorterAssignmentsContent() {
     (user) => user.role === "porter" && user.is_active,
   );
   const portersById = new Map(porters.map((p) => [String(p.id), p]));
+  const selectedPorter = portersById.get(porterId);
 
   function toggleRoom(roomId: number) {
     setSelectedRooms((prev) => {
@@ -128,111 +123,167 @@ function PorterAssignmentsContent() {
   }
 
   return (
-    <AdminShell title="Porter Assignments">
-      <Card className="max-w-2xl">
-        <CardHeader>
-          <CardTitle>Assign rooms to a porter</CardTitle>
-          <CardDescription>
-            A porter only ever sees and acts on rooms assigned to them here.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <form onSubmit={handleAssign} className="space-y-5">
-            <div className="grid gap-2">
-              <Label htmlFor="porter">Porter</Label>
-              <Select
-                value={porterId}
-                onValueChange={(v) => setPorterId(v ?? "")}
-              >
-                <SelectTrigger id="porter" className="w-full">
-                  <SelectValue placeholder="Select a porter…">
-                    {(value: string) => {
-                      const p = portersById.get(value);
-                      return p
-                        ? `${p.full_name} (${p.email})`
-                        : "Select a porter…";
-                    }}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {porters.map((porter) => (
-                    <SelectItem key={porter.id} value={String(porter.id)}>
-                      {porter.full_name} ({porter.email})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!usersLoading && porters.length === 0 && (
-                <p className="text-xs text-muted-foreground">
-                  No active porters yet — add one on the Users page first.
-                </p>
-              )}
+    <AppShell title="Porter Assignments">
+      <form
+        onSubmit={handleAssign}
+        className="flex max-w-[920px] flex-col gap-4.5"
+      >
+        <div className="grid gap-4.5 md:grid-cols-[1fr_1.15fr]">
+          {/* Step 1: choose porter */}
+          <div className="flex flex-col gap-4 rounded-[14px] border border-border bg-card p-5.5">
+            <div className="flex flex-col gap-1">
+              <span className="text-[11px] font-semibold tracking-[.1em] text-muted-foreground uppercase">
+                Step 1
+              </span>
+              <span className="font-heading text-[19px] font-semibold text-foreground">
+                Choose a porter
+              </span>
             </div>
-
-            <div className="space-y-2">
-              <p className="text-sm font-medium">
-                Rooms ({selectedRooms.size} selected)
+            {usersLoading && (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            )}
+            {!usersLoading && porters.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No active porters yet — add one on the Users page first.
               </p>
-              {roomsLoading && (
-                <p className="text-sm text-muted-foreground">Loading…</p>
-              )}
-              {!roomsLoading && rooms?.length === 0 && (
-                <p className="text-sm text-muted-foreground">
-                  No rooms yet — add rooms on the Rooms page first.
-                </p>
-              )}
-              {rooms && rooms.length > 0 && (
-                <div className="max-h-72 space-y-1 overflow-y-auto rounded-lg border p-3">
-                  {rooms.map((room) => (
+            )}
+            <div className="flex flex-col gap-1.5">
+              {porters.map((porter) => {
+                const selected = String(porter.id) === porterId;
+                return (
+                  <button
+                    key={porter.id}
+                    type="button"
+                    onClick={() => {
+                      setPorterId(String(porter.id));
+                      setResults(null);
+                    }}
+                    className={`flex w-full items-center gap-3 rounded-[11px] border px-3.5 py-3 text-left transition-colors ${
+                      selected
+                        ? "border-primary bg-[#faf3f8]"
+                        : "border-border bg-secondary"
+                    }`}
+                  >
+                    <span
+                      className={`flex size-8.5 shrink-0 items-center justify-center rounded-full text-[12.5px] font-semibold ${
+                        selected
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-accent text-primary"
+                      }`}
+                    >
+                      {initials(porter.full_name)}
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5 leading-tight">
+                      <span className="text-sm font-semibold text-foreground">
+                        {porter.full_name}
+                      </span>
+                      <span className="text-xs text-muted-foreground">
+                        {porter.email}
+                      </span>
+                    </span>
+                    {selected && (
+                      <Check className="ml-auto size-4.5 shrink-0 text-primary" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Step 2: select rooms */}
+          <div className="flex flex-col gap-4 rounded-[14px] border border-border bg-card p-5.5">
+            <div className="flex items-end justify-between gap-3">
+              <div className="flex flex-col gap-1">
+                <span className="text-[11px] font-semibold tracking-[.1em] text-muted-foreground uppercase">
+                  Step 2
+                </span>
+                <span className="font-heading text-[19px] font-semibold text-foreground">
+                  Select rooms
+                </span>
+              </div>
+              <span className="rounded-full border border-[#e0cfdb] bg-accent px-3 py-1 text-[12.5px] font-semibold text-primary">
+                {selectedRooms.size} selected
+              </span>
+            </div>
+            {roomsLoading && (
+              <p className="text-sm text-muted-foreground">Loading…</p>
+            )}
+            {!roomsLoading && rooms?.length === 0 && (
+              <p className="text-sm text-muted-foreground">
+                No rooms yet — add rooms on the Rooms page first.
+              </p>
+            )}
+            {rooms && rooms.length > 0 && (
+              <div className="flex max-h-80 flex-col gap-0.5 overflow-y-auto">
+                {rooms.map((room) => {
+                  const checked = selectedRooms.has(room.id);
+                  return (
                     <label
                       key={room.id}
-                      className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-accent"
+                      className={`flex cursor-pointer items-center gap-3 rounded-[9px] px-3 py-2.5 text-sm transition-colors ${
+                        checked ? "bg-[#faf3f8]" : "hover:bg-accent/50"
+                      }`}
                     >
                       <Checkbox
-                        checked={selectedRooms.has(room.id)}
+                        checked={checked}
                         onCheckedChange={() => toggleRoom(room.id)}
                       />
-                      <span>{roomLabel(room, hallsById)}</span>
+                      <span className="font-medium text-foreground">
+                        {roomLabel(room, hallsById)}
+                      </span>
+                      <span className="ml-auto font-mono text-xs text-muted-foreground">
+                        cap {room.capacity}
+                      </span>
                     </label>
-                  ))}
-                </div>
-              )}
-            </div>
-
+                  );
+                })}
+              </div>
+            )}
             {formError && (
               <p className="text-sm text-destructive">{formError}</p>
             )}
-
-            {results && (
-              <div className="space-y-1 rounded-lg border p-3 text-sm">
-                <p className="font-medium">Assignment results</p>
-                {results.map((line, i) => (
-                  <p
-                    key={i}
-                    className={
-                      line.startsWith("✓")
-                        ? "flex items-center gap-1.5 text-green-700 dark:text-green-400"
-                        : "flex items-center gap-1.5 text-destructive"
-                    }
-                  >
-                    {line.startsWith("✓") ? (
-                      <Check className="size-3.5 shrink-0" />
-                    ) : (
-                      <X className="size-3.5 shrink-0" />
-                    )}
-                    {line.slice(2)}
-                  </p>
-                ))}
-              </div>
-            )}
-
-            <Button type="submit" disabled={submitting}>
-              {submitting ? "Assigning…" : "Assign rooms"}
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="rounded-[9px] py-3"
+            >
+              {submitting
+                ? "Assigning…"
+                : `Assign ${selectedRooms.size} room${selectedRooms.size === 1 ? "" : "s"}${selectedPorter ? ` to ${selectedPorter.full_name.split(" ")[0]}` : ""}`}
             </Button>
-          </form>
-        </CardContent>
-      </Card>
-    </AdminShell>
+          </div>
+        </div>
+
+        {results && (
+          <div className="flex flex-col gap-3 rounded-[14px] border border-border bg-card p-5.5">
+            <span className="text-[11px] font-semibold tracking-[.1em] text-muted-foreground uppercase">
+              Assignment results
+            </span>
+            {results.map((line, i) => (
+              <div
+                key={i}
+                className="flex items-center gap-2.5 border-b border-[#efe7db] py-2 text-[13.5px] last:border-0"
+              >
+                {line.startsWith("✓") ? (
+                  <Check className="size-4 shrink-0 text-[#2f7d4f]" />
+                ) : (
+                  <X className="size-4 shrink-0 text-destructive" />
+                )}
+                <span
+                  className={
+                    line.startsWith("✓")
+                      ? "text-[#2f7d4f]"
+                      : "font-medium text-foreground"
+                  }
+                >
+                  {line.slice(2)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+      </form>
+    </AppShell>
   );
 }
 

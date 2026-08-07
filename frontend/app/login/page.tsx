@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { apiFetch, ApiError } from "@/lib/api";
 import { setToken, dashboardPathForRole, type UserRole } from "@/lib/auth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
 interface LoginResponse {
   access_token: string;
@@ -16,6 +20,7 @@ export default function LoginPage() {
   const router = useRouter();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [pwVisible, setPwVisible] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
@@ -42,66 +47,155 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-zinc-50 px-4 dark:bg-black">
-      <form
-        onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-950"
-      >
-        <div className="space-y-1 text-center">
-          <h1 className="text-xl font-semibold text-black dark:text-zinc-50">
-            HAPMS
+    <div className="flex min-h-screen w-full flex-col md:flex-row">
+      {/* Brand panel */}
+      <div className="flex flex-col gap-5 bg-sidebar px-7 py-8 text-sidebar-foreground md:w-[46%] md:px-11 md:py-10">
+        <div className="flex items-center gap-3">
+          <div className="flex size-8.5 items-center justify-center rounded-lg border border-[rgba(233,197,106,0.4)]">
+            <span className="font-heading text-xl font-semibold text-sidebar-primary">
+              H
+            </span>
+          </div>
+          <span className="text-xs font-semibold tracking-[.16em] text-sidebar-primary uppercase">
+            University of Benin
+          </span>
+        </div>
+        <div className="flex flex-1 flex-col justify-center gap-5 py-2">
+          <div className="h-0.5 w-11 bg-sidebar-primary" />
+          <h1 className="font-heading text-[32px] leading-[1.08] font-medium tracking-tight text-sidebar-foreground md:text-[42px]">
+            Every asset.
+            <br />
+            Every room.
+            <br />
+            Accounted&nbsp;for.
           </h1>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Sign in to continue
+          <p className="max-w-[34ch] text-[15px] leading-[1.7] text-sidebar-foreground/70">
+            The Hostel Asset &amp; Property Management System — one verified
+            record of every room, every session, across the halls of
+            residence.
           </p>
         </div>
-
-        <div className="space-y-1">
-          <label
-            htmlFor="email"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="flex items-center gap-2.5 text-[12.5px] text-sidebar-foreground/60">
+            <span className="size-1.5 rounded-full bg-[#5aa06f]" />
+            Hostel Directorate · Session 2025/2026
+          </span>
+          <Link
+            href="/"
+            className="flex items-center gap-1.5 text-[12.5px] font-semibold text-sidebar-primary hover:text-[#f0d68a]"
           >
-            Email
-          </label>
-          <input
-            id="email"
-            type="email"
-            required
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
+            About HAPMS
+            <svg
+              viewBox="0 0 24 24"
+              width="13"
+              height="13"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Link>
         </div>
+      </div>
 
-        <div className="space-y-1">
-          <label
-            htmlFor="password"
-            className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-          >
-            Password
-          </label>
-          <input
-            id="password"
-            type="password"
-            required
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            className="w-full rounded-md border border-zinc-300 px-3 py-2 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-          />
-        </div>
-
-        {error && (
-          <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-        )}
-
-        <button
-          type="submit"
-          disabled={submitting}
-          className="w-full rounded-md bg-black px-3 py-2 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+      {/* Form panel */}
+      <div className="flex flex-1 items-start justify-center bg-[#faf6ef] px-6 py-8 md:items-center md:p-10">
+        <form
+          onSubmit={handleSubmit}
+          className="flex w-full max-w-[360px] flex-col gap-6"
         >
-          {submitting ? "Signing in…" : "Sign in"}
-        </button>
-      </form>
+          <div className="flex flex-col gap-2">
+            <h2 className="font-heading text-[28px] font-medium tracking-tight text-foreground md:text-[30px]">
+              Sign in
+            </h2>
+            <p className="text-[14.5px] leading-[1.6] text-muted-foreground">
+              Use the credentials issued to you by the hostel office.
+              You&apos;ll land on the right dashboard automatically.
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <Label
+                htmlFor="email"
+                className="text-xs font-semibold tracking-[.06em] text-[#6b5f67] uppercase"
+              >
+                Email address
+              </Label>
+              <Input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="h-auto rounded-[9px] border-[#d8cebf] bg-card px-3.5 py-3 text-[15px]"
+              />
+            </div>
+
+            <div className="flex flex-col gap-1.5">
+              <Label
+                htmlFor="password"
+                className="text-xs font-semibold tracking-[.06em] text-[#6b5f67] uppercase"
+              >
+                Password
+              </Label>
+              <div className="relative flex items-center">
+                <Input
+                  id="password"
+                  type={pwVisible ? "text" : "password"}
+                  required
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="h-auto rounded-[9px] border-[#d8cebf] bg-card px-3.5 py-3 pr-11 text-[15px]"
+                />
+                <button
+                  type="button"
+                  aria-label="Toggle password visibility"
+                  onClick={() => setPwVisible((v) => !v)}
+                  className="absolute right-1.5 flex size-8 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-primary"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.7"
+                  >
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                    <circle cx="12" cy="12" r="3" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {error && <p className="text-sm text-destructive">{error}</p>}
+
+          <Button
+            type="submit"
+            disabled={submitting}
+            className="h-auto w-full gap-2 rounded-[9px] py-3.5 text-[15px] font-semibold shadow-[0_6px_18px_rgba(44,16,41,.22)]"
+          >
+            {submitting ? "Signing in…" : "Sign in"}
+            <svg
+              viewBox="0 0 24 24"
+              width="17"
+              height="17"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.9"
+            >
+              <path d="M5 12h14M13 6l6 6-6 6" />
+            </svg>
+          </Button>
+          <p className="text-center text-[12.5px] leading-[1.6] text-muted-foreground">
+            No self-registration. Password resets are handled by the hostel
+            office.
+          </p>
+        </form>
+      </div>
     </div>
   );
 }

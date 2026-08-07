@@ -5,21 +5,14 @@ import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { AdminShell } from "@/components/AdminShell";
+import { AppShell } from "@/components/AppShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -99,14 +92,16 @@ function CreateHallDialog({ onCreated }: { onCreated: () => void }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
-        <Plus />
+      <DialogTrigger render={<Button className="gap-2 rounded-[9px]" />}>
+        <Plus className="size-4" />
         Add hall
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleCreate}>
           <DialogHeader>
-            <DialogTitle>Add a hall</DialogTitle>
+            <DialogTitle className="font-heading text-xl">
+              Add a hall
+            </DialogTitle>
             <DialogDescription>
               The room category (Regular/Special) is derived automatically from
               the hall type.
@@ -151,7 +146,7 @@ function CreateHallDialog({ onCreated }: { onCreated: () => void }) {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} className="rounded-[9px]">
               {submitting ? "Adding…" : "Add hall"}
             </Button>
           </DialogFooter>
@@ -170,62 +165,70 @@ function HallsPageContent() {
   } = useApiResource<Hall[]>("/admin/halls");
 
   return (
-    <AdminShell title="Halls">
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Halls</CardTitle>
-            <CardDescription>
+    <AppShell title="Halls">
+      <div className="flex flex-col gap-4.5">
+        <div className="flex flex-wrap items-center justify-between gap-3.5">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Halls
+            </h2>
+            <p className="text-[13px] text-muted-foreground">
               Every hostel hall configured in the system.
-            </CardDescription>
+            </p>
           </div>
           <CreateHallDialog onCreated={refetch} />
-        </CardHeader>
-        <CardContent>
-          {loading && (
-            <div className="space-y-2">
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          )}
-          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
-          {!loading && !loadError && halls?.length === 0 && (
-            <p className="text-sm text-muted-foreground">No halls yet.</p>
-          )}
-          {halls && halls.length > 0 && (
+        </div>
+
+        {loading && (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
+        {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+        {!loading && !loadError && halls?.length === 0 && (
+          <p className="text-sm text-muted-foreground">No halls yet.</p>
+        )}
+        {halls && halls.length > 0 && (
+          <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(44,16,41,.03)]">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Hall type</TableHead>
-                  <TableHead>Category</TableHead>
+              <TableHeader className="bg-secondary">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Hall name
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Hall type
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Category
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {halls.map((hall) => (
-                  <TableRow key={hall.id}>
-                    <TableCell className="font-medium">{hall.name}</TableCell>
+                  <TableRow key={hall.id} className="hover:bg-[#f7f1e8]">
+                    <TableCell className="font-semibold text-foreground">
+                      {hall.name}
+                    </TableCell>
                     <TableCell className="text-muted-foreground">
                       {HALL_TYPE_LABELS[hall.hall_type] ?? hall.hall_type}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          hall.category === "Regular" ? "secondary" : "default"
-                        }
-                      >
-                        {hall.category}
-                      </Badge>
+                      <StatusPill
+                        kind={hall.category === "Regular" ? "regular" : "special"}
+                        label={hall.category}
+                      />
                     </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
-    </AdminShell>
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
 }
 

@@ -1,18 +1,12 @@
 "use client";
 
+import { useState } from "react";
+
 import { RoleGuard } from "@/components/RoleGuard";
-import { AdminShell } from "@/components/AdminShell";
+import { AppShell } from "@/components/AppShell";
 import { useApiResource } from "@/lib/useApiResource";
-import { Badge } from "@/components/ui/badge";
+import { StatusPill } from "@/components/StatusPill";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -70,40 +64,50 @@ function BaselinesTable() {
     );
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Room</TableHead>
-          <TableHead>Session</TableHead>
-          <TableHead>Recorded by</TableHead>
-          <TableHead>Created</TableHead>
-          <TableHead>Shared confirmed</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.baseline_id}>
-            <TableCell className="font-medium">
-              {row.hall_name}, Room {row.room_number}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {row.session_name}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {row.created_by_name}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {new Date(row.created_at).toLocaleString()}
-            </TableCell>
-            <TableCell>
-              <Badge variant={row.shared_confirmed ? "secondary" : "outline"}>
-                {row.shared_confirmed ? "Yes" : "No"}
-              </Badge>
-            </TableCell>
+    <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(44,16,41,.03)]">
+      <Table>
+        <TableHeader className="bg-secondary">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Room
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Session
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Recorded by
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Created
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Shared confirmed
+            </TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.baseline_id} className="hover:bg-[#f7f1e8]">
+              <TableCell className="font-semibold text-foreground">
+                {row.hall_name}, Room {row.room_number}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.session_name}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.created_by_name}
+              </TableCell>
+              <TableCell className="font-mono text-[13px] text-[#5f5560]">
+                {new Date(row.created_at).toLocaleString()}
+              </TableCell>
+              <TableCell>
+                <StatusPill kind={row.shared_confirmed ? "confirmed" : "pendingSignoff"} />
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
@@ -130,65 +134,89 @@ function VerificationsTable() {
     );
 
   return (
-    <Table>
-      <TableHeader>
-        <TableRow>
-          <TableHead>Room</TableHead>
-          <TableHead>Session</TableHead>
-          <TableHead>Flagged items</TableHead>
-          <TableHead>Verified</TableHead>
-        </TableRow>
-      </TableHeader>
-      <TableBody>
-        {rows.map((row) => (
-          <TableRow key={row.verification_id}>
-            <TableCell className="font-medium">
-              {row.hall_name}, Room {row.room_number}
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {row.session_name}
-            </TableCell>
-            <TableCell>
-              <Badge variant={row.flagged_count > 0 ? "default" : "secondary"}>
-                {row.flagged_count}
-              </Badge>
-            </TableCell>
-            <TableCell className="text-muted-foreground">
-              {new Date(row.verified_at).toLocaleString()}
-            </TableCell>
+    <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(44,16,41,.03)]">
+      <Table>
+        <TableHeader className="bg-secondary">
+          <TableRow className="hover:bg-transparent">
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Room
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Session
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Flagged items
+            </TableHead>
+            <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+              Verified
+            </TableHead>
           </TableRow>
-        ))}
-      </TableBody>
-    </Table>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row) => (
+            <TableRow key={row.verification_id} className="hover:bg-[#f7f1e8]">
+              <TableCell className="font-semibold text-foreground">
+                {row.hall_name}, Room {row.room_number}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {row.session_name}
+              </TableCell>
+              <TableCell>
+                <StatusPill
+                  kind={row.flagged_count > 0 ? "flagged" : "clean"}
+                  label={
+                    row.flagged_count > 0
+                      ? `${row.flagged_count} flagged`
+                      : undefined
+                  }
+                />
+              </TableCell>
+              <TableCell className="font-mono text-[13px] text-[#5f5560]">
+                {new Date(row.verified_at).toLocaleString()}
+              </TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    </div>
   );
 }
 
 function ReportsContent() {
+  const [tab, setTab] = useState<"baselines" | "verifications">("baselines");
+  const tabClass = (active: boolean) =>
+    `flex items-center gap-1.5 px-4.5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
+      active ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+    }`;
+
   return (
-    <AdminShell title="Reports">
-      <Card>
-        <CardHeader>
-          <CardTitle>Reports</CardTitle>
-          <CardDescription>
-            Every baseline and verification recorded across all sessions.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Tabs defaultValue="baselines">
-            <TabsList>
-              <TabsTrigger value="baselines">Baselines</TabsTrigger>
-              <TabsTrigger value="verifications">Verifications</TabsTrigger>
-            </TabsList>
-            <TabsContent value="baselines">
-              <BaselinesTable />
-            </TabsContent>
-            <TabsContent value="verifications">
-              <VerificationsTable />
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
-    </AdminShell>
+    <AppShell title="Reports">
+      <div className="flex flex-col gap-1">
+        <h2 className="font-heading text-lg font-semibold text-foreground">
+          Reports
+        </h2>
+        <p className="mb-3 text-[13px] text-muted-foreground">
+          Every baseline and verification recorded across all sessions.
+        </p>
+        <div className="mb-5 flex gap-0.5 border-b border-border">
+          <button
+            type="button"
+            onClick={() => setTab("baselines")}
+            className={tabClass(tab === "baselines")}
+          >
+            Baselines
+          </button>
+          <button
+            type="button"
+            onClick={() => setTab("verifications")}
+            className={tabClass(tab === "verifications")}
+          >
+            Verifications
+          </button>
+        </div>
+        {tab === "baselines" ? <BaselinesTable /> : <VerificationsTable />}
+      </div>
+    </AppShell>
   );
 }
 

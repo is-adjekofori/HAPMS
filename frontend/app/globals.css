@@ -9,7 +9,7 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-sans);
   --font-mono: var(--font-mono);
-  --font-heading: var(--font-sans);
+  --font-heading: var(--font-heading);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -49,79 +49,79 @@
 }
 
 /*
- * UNIBEN-branded palette: deep purple as the primary accent, gold as a
- * secondary highlight, green reserved for success states only (per the
- * project's design direction — see docs/TASKS.md Phase 14 notes). The
- * sidebar stays a fixed dark purple in both light and dark mode for a
- * consistent brand presence, matching the university's own portal pattern.
+ * "Registry" palette — warm institutional, editorial, restrained. Parchment
+ * grounds, aubergine primary, gold used only as a thin accent (never a fill).
+ * Sourced from the approved HAPMS Redesign prototype (claude.ai/design).
+ * Status colors (ok/alert/damaged/awaiting/neutral) are applied via the
+ * StatusPill component, not raw here — see components/StatusPill.tsx.
  */
 :root {
-  --background: #ffffff;
-  --foreground: #1a1025;
-  --card: #ffffff;
-  --card-foreground: #1a1025;
-  --popover: #ffffff;
-  --popover-foreground: #1a1025;
-  --primary: #7c1f82;
-  --primary-foreground: #ffffff;
-  --secondary: #f5f0f7;
-  --secondary-foreground: #3d1740;
-  --muted: #f5f3f6;
-  --muted-foreground: #6b6470;
-  --accent: #fdf6e3;
-  --accent-foreground: #7c1f82;
-  --destructive: #dc2626;
-  --border: #e7e3ea;
-  --input: #e7e3ea;
-  --ring: #7c1f82;
-  --chart-1: #7c1f82;
-  --chart-2: #c9a227;
-  --chart-3: #16a34a;
-  --chart-4: #2563eb;
-  --chart-5: #db2777;
+  --background: #f4efe6;
+  --foreground: #241820;
+  --card: #fdfbf7;
+  --card-foreground: #241820;
+  --popover: #fdfbf7;
+  --popover-foreground: #241820;
+  --primary: #5b2350;
+  --primary-foreground: #fdf6ef;
+  --secondary: #fbf8f2;
+  --secondary-foreground: #5f5560;
+  --muted: #fbf8f2;
+  --muted-foreground: #8a7f87;
+  --accent: #efe4ec;
+  --accent-foreground: #5b2350;
+  --destructive: #b3261e;
+  --border: #e6ddce;
+  --input: #d8cebf;
+  --ring: #5b2350;
+  --chart-1: #5b2350;
+  --chart-2: #c99a3f;
+  --chart-3: #2f7d4f;
+  --chart-4: #3a5a8a;
+  --chart-5: #b8600a;
   --radius: 0.625rem;
-  --sidebar: #1f0a2e;
-  --sidebar-foreground: #f1eaf4;
-  --sidebar-primary: #c9a227;
-  --sidebar-primary-foreground: #1f0a2e;
-  --sidebar-accent: #33144a;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #3a1a52;
-  --sidebar-ring: #c9a227;
+  --sidebar: #2c1029;
+  --sidebar-foreground: #f4ece2;
+  --sidebar-primary: #e9c56a;
+  --sidebar-primary-foreground: #2c1029;
+  --sidebar-accent: rgba(233, 197, 106, 0.13);
+  --sidebar-accent-foreground: #f4e6c6;
+  --sidebar-border: rgba(233, 197, 106, 0.14);
+  --sidebar-ring: #e9c56a;
 }
 
 .dark {
-  --background: #150c1b;
-  --foreground: #f1eaf4;
-  --card: #1f1329;
-  --card-foreground: #f1eaf4;
-  --popover: #1f1329;
-  --popover-foreground: #f1eaf4;
-  --primary: #a855f7;
-  --primary-foreground: #1f0a2e;
-  --secondary: #2a1938;
-  --secondary-foreground: #f1eaf4;
-  --muted: #2a1938;
-  --muted-foreground: #b3a5bc;
-  --accent: #33203f;
-  --accent-foreground: #e9c875;
-  --destructive: #f87171;
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: #a855f7;
-  --chart-1: #a855f7;
-  --chart-2: #e9c875;
-  --chart-3: #4ade80;
-  --chart-4: #60a5fa;
-  --chart-5: #f472b6;
-  --sidebar: #120817;
-  --sidebar-foreground: #f1eaf4;
-  --sidebar-primary: #d4af37;
-  --sidebar-primary-foreground: #120817;
-  --sidebar-accent: #241333;
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: oklch(1 0 0 / 8%);
-  --sidebar-ring: #d4af37;
+  --background: #1c1017;
+  --foreground: #f4ece2;
+  --card: #241621;
+  --card-foreground: #f4ece2;
+  --popover: #241621;
+  --popover-foreground: #f4ece2;
+  --primary: #d9a6cd;
+  --primary-foreground: #2c1029;
+  --secondary: #2c1c29;
+  --secondary-foreground: #d8cbd2;
+  --muted: #2c1c29;
+  --muted-foreground: #a7969e;
+  --accent: #38222f;
+  --accent-foreground: #e9c56a;
+  --destructive: #e5817a;
+  --border: rgba(244, 236, 226, 0.12);
+  --input: rgba(244, 236, 226, 0.16);
+  --ring: #d9a6cd;
+  --chart-1: #d9a6cd;
+  --chart-2: #e9c56a;
+  --chart-3: #6fbf8f;
+  --chart-4: #8aa9d9;
+  --chart-5: #d98a4a;
+  --sidebar: #180a16;
+  --sidebar-foreground: #f4ece2;
+  --sidebar-primary: #e9c56a;
+  --sidebar-primary-foreground: #180a16;
+  --sidebar-accent: rgba(233, 197, 106, 0.13);
+  --sidebar-accent-foreground: #f4e6c6;
+  --sidebar-border: rgba(233, 197, 106, 0.1);
+  --sidebar-ring: #e9c56a;
 }
 
 @layer base {

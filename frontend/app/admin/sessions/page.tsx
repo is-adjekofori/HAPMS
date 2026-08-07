@@ -1,26 +1,18 @@
 "use client";
 
 import { useState } from "react";
-import { AlertTriangle, Plus } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { AdminShell } from "@/components/AdminShell";
+import { AppShell } from "@/components/AppShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { StatusPill } from "@/components/StatusPill";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import {
   Dialog,
   DialogClose,
@@ -105,14 +97,16 @@ function CreateSessionDialog({ onCreated }: { onCreated: () => void }) {
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger render={<Button />}>
-        <Plus />
+      <DialogTrigger render={<Button className="gap-2 rounded-[9px]" />}>
+        <Plus className="size-4" />
         Start session
       </DialogTrigger>
       <DialogContent>
         <form onSubmit={handleCreate}>
           <DialogHeader>
-            <DialogTitle>Start a session</DialogTitle>
+            <DialogTitle className="font-heading text-xl">
+              Start a session
+            </DialogTitle>
             <DialogDescription>
               Only one session can be active at a time. Close the current one
               before starting another.
@@ -147,7 +141,7 @@ function CreateSessionDialog({ onCreated }: { onCreated: () => void }) {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={submitting}>
+            <Button type="submit" disabled={submitting} className="rounded-[9px]">
               {submitting ? "Starting…" : "Start session"}
             </Button>
           </DialogFooter>
@@ -202,71 +196,100 @@ function SessionsPageContent() {
   }
 
   return (
-    <AdminShell title="Sessions">
-      {closeError && (
-        <Alert variant="destructive">
-          <AlertTriangle />
-          <AlertTitle>Couldn&apos;t close the session</AlertTitle>
-          <AlertDescription>
-            <p>{closeError}</p>
-            {unverifiedRooms && unverifiedRooms.length > 0 && (
-              <p>Unverified room IDs: {unverifiedRooms.join(", ")}</p>
-            )}
-          </AlertDescription>
-        </Alert>
-      )}
+    <AppShell title="Sessions">
+      <div className="flex flex-col gap-4.5">
+        {closeError && (
+          <div className="flex items-start gap-3 rounded-xl border border-[#eec7c1] bg-[#fae9e6] px-4.5 py-4">
+            <svg
+              viewBox="0 0 24 24"
+              width="20"
+              height="20"
+              fill="none"
+              stroke="#b3261e"
+              strokeWidth="1.8"
+              className="mt-0.5 shrink-0"
+            >
+              <path d="M12 8v4M12 16h.01M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z" />
+            </svg>
+            <div className="flex flex-col gap-1.5">
+              <span className="text-[13.5px] font-semibold text-[#9a1f18]">
+                {closeError}
+              </span>
+              {unverifiedRooms && unverifiedRooms.length > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {unverifiedRooms.map((id) => (
+                    <code
+                      key={id}
+                      className="rounded-md border border-[#eec7c1] bg-white px-2 py-1 font-mono text-[12.5px] text-destructive"
+                    >
+                      Room #{id}
+                    </code>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between">
-          <div>
-            <CardTitle>Sessions</CardTitle>
-            <CardDescription>
+        <div className="flex flex-wrap items-center justify-between gap-3.5">
+          <div className="flex flex-col gap-1">
+            <h2 className="font-heading text-lg font-semibold text-foreground">
+              Sessions
+            </h2>
+            <p className="text-[13px] text-muted-foreground">
               Every hostel session, past and present.
-            </CardDescription>
+            </p>
           </div>
           <CreateSessionDialog onCreated={refetch} />
-        </CardHeader>
-        <CardContent>
-          {loading && (
-            <div className="space-y-2">
-              <Skeleton className="h-9 w-full" />
-              <Skeleton className="h-9 w-full" />
-            </div>
-          )}
-          {loadError && <p className="text-sm text-destructive">{loadError}</p>}
-          {!loading && !loadError && sessions?.length === 0 && (
-            <p className="text-sm text-muted-foreground">No sessions yet.</p>
-          )}
-          {sessions && sessions.length > 0 && (
+        </div>
+
+        {loading && (
+          <div className="space-y-2">
+            <Skeleton className="h-9 w-full" />
+            <Skeleton className="h-9 w-full" />
+          </div>
+        )}
+        {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+        {!loading && !loadError && sessions?.length === 0 && (
+          <p className="text-sm text-muted-foreground">No sessions yet.</p>
+        )}
+        {sessions && sessions.length > 0 && (
+          <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(44,16,41,.03)]">
             <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Closed</TableHead>
-                  <TableHead className="text-right">Action</TableHead>
+              <TableHeader className="bg-secondary">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Name
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Status
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Started
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Closed
+                  </TableHead>
+                  <TableHead className="text-right text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Action
+                  </TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sessions.map((session) => (
-                  <TableRow key={session.id}>
-                    <TableCell className="font-medium">
+                  <TableRow key={session.id} className="hover:bg-[#f7f1e8]">
+                    <TableCell className="font-semibold text-foreground">
                       {session.name}
                     </TableCell>
                     <TableCell>
-                      <Badge
-                        variant={
-                          session.status === "active" ? "secondary" : "outline"
-                        }
-                      >
-                        {session.status === "active" ? "Active" : "Closed"}
-                      </Badge>
+                      <StatusPill
+                        kind={session.status === "active" ? "active" : "closed"}
+                      />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="font-mono text-[13px] text-[#5f5560]">
                       {formatDate(session.started_at)}
                     </TableCell>
-                    <TableCell className="text-muted-foreground">
+                    <TableCell className="font-mono text-[13px] text-[#5f5560]">
                       {formatDate(session.closed_at)}
                     </TableCell>
                     <TableCell className="text-right">
@@ -275,10 +298,10 @@ function SessionsPageContent() {
                           <AlertDialogTrigger
                             render={
                               <Button
-                                variant="ghost"
+                                variant="outline"
                                 size="sm"
                                 disabled={busySessionId === session.id}
-                                className="text-destructive hover:text-destructive"
+                                className="rounded-lg border-[#eec7c1] bg-[#fdf1ef] text-destructive hover:bg-[#fae9e6]"
                               />
                             }
                           >
@@ -314,10 +337,10 @@ function SessionsPageContent() {
                 ))}
               </TableBody>
             </Table>
-          )}
-        </CardContent>
-      </Card>
-    </AdminShell>
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
 }
 
