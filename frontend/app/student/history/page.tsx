@@ -3,8 +3,17 @@
 import Link from "next/link";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
+import { AppShell } from "@/components/AppShell";
 import { useApiResource } from "@/lib/useApiResource";
+import { StatusPill } from "@/components/StatusPill";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 
 interface HistoryAllocation {
   id: number;
@@ -26,68 +35,95 @@ function HistoryContent() {
   } = useApiResource<HistoryAllocation[]>("/student/history");
 
   return (
-    <DashboardShell title="Student Dashboard">
-      <div className="mb-4">
+    <AppShell title="Session History">
+      <div className="flex max-w-[900px] flex-col gap-4.5">
         <Link
           href="/student"
-          className="text-sm text-zinc-500 underline hover:text-black dark:hover:text-zinc-50"
+          className="flex w-fit items-center gap-1.5 text-[13.5px] font-semibold text-primary hover:text-[#6d2a5f]"
         >
-          ← My Room
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+          >
+            <path d="M19 12H5M11 6l-6 6 6 6" />
+          </svg>
+          My Room
         </Link>
-      </div>
 
-      <h2 className="mb-3 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        My Session History
-      </h2>
-
-      {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {error && (
-        <p className="text-sm text-red-600 dark:text-red-400">{error}</p>
-      )}
-      {!loading && !error && history?.length === 0 && (
-        <p className="text-sm text-zinc-500">
-          You have no past room allocations yet.
+        <p className="max-w-[60ch] text-[14px] leading-[1.6] text-muted-foreground">
+          A read-only record of every room you&apos;ve been allocated, across
+          every session. These entries can&apos;t be edited or removed — by
+          design.
         </p>
-      )}
 
-      {history && history.length > 0 && (
-        <table className="w-full max-w-2xl text-left text-sm">
-          <thead>
-            <tr className="border-b border-zinc-200 text-zinc-500 dark:border-zinc-800">
-              <th className="py-2 pr-4 font-medium">Session</th>
-              <th className="py-2 pr-4 font-medium">Hall / Room</th>
-              <th className="py-2 pr-4 font-medium">Allocated</th>
-              <th className="py-2 font-medium">Status</th>
-            </tr>
-          </thead>
-          <tbody>
-            {history.map((allocation) => (
-              <tr
-                key={allocation.id}
-                className="border-b border-zinc-100 dark:border-zinc-900"
-              >
-                <td className="py-2 pr-4 text-black dark:text-zinc-50">
-                  {allocation.session_name}
-                  <span className="ml-1 text-xs text-zinc-400 capitalize">
-                    ({allocation.session_status})
-                  </span>
-                </td>
-                <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                  {allocation.hall_name}, Room {allocation.room_number}
-                  {allocation.corner_label ? ` ${allocation.corner_label}` : ""}
-                </td>
-                <td className="py-2 pr-4 text-zinc-600 dark:text-zinc-400">
-                  {new Date(allocation.allocated_at).toLocaleDateString()}
-                </td>
-                <td className="py-2 capitalize text-zinc-600 dark:text-zinc-400">
-                  {allocation.status}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-    </DashboardShell>
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {error && <p className="text-sm text-destructive">{error}</p>}
+        {!loading && !error && history?.length === 0 && (
+          <p className="text-sm text-muted-foreground">
+            You have no past room allocations yet.
+          </p>
+        )}
+
+        {history && history.length > 0 && (
+          <div className="overflow-hidden rounded-[14px] border border-border bg-card shadow-[0_1px_2px_rgba(44,16,41,.03)]">
+            <Table>
+              <TableHeader className="bg-secondary">
+                <TableRow className="hover:bg-transparent">
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Session
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Hall / Room
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Allocated
+                  </TableHead>
+                  <TableHead className="text-[11px] font-bold tracking-[.08em] text-muted-foreground uppercase">
+                    Status
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {history.map((allocation) => (
+                  <TableRow key={allocation.id} className="hover:bg-[#f7f1e8]">
+                    <TableCell>
+                      <div className="flex flex-col gap-0.5">
+                        <span className="font-semibold text-foreground">
+                          {allocation.session_name}
+                        </span>
+                        <span className="text-xs text-muted-foreground capitalize">
+                          {allocation.session_status} session
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {allocation.hall_name} · Room {allocation.room_number}
+                      {allocation.corner_label
+                        ? ` ${allocation.corner_label}`
+                        : ""}
+                    </TableCell>
+                    <TableCell className="font-mono text-[13px] text-[#5f5560]">
+                      {new Date(allocation.allocated_at).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>
+                      <StatusPill
+                        kind={
+                          allocation.status === "active" ? "current" : "vacated"
+                        }
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        )}
+      </div>
+    </AppShell>
   );
 }
 

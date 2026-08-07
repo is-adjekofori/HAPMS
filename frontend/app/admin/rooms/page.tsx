@@ -168,7 +168,11 @@ function CreateRoomDialog({
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={submitting} className="rounded-[9px]">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="rounded-[9px]"
+            >
               {submitting ? "Adding…" : "Add room"}
             </Button>
           </DialogFooter>

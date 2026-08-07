@@ -141,7 +141,11 @@ function CreateSessionDialog({ onCreated }: { onCreated: () => void }) {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={submitting} className="rounded-[9px]">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="rounded-[9px]"
+            >
               {submitting ? "Starting…" : "Start session"}
             </Button>
           </DialogFooter>

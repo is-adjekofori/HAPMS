@@ -71,8 +71,7 @@ export default function LoginPage() {
           </h1>
           <p className="max-w-[34ch] text-[15px] leading-[1.7] text-sidebar-foreground/70">
             The Hostel Asset &amp; Property Management System — one verified
-            record of every room, every session, across the halls of
-            residence.
+            record of every room, every session, across the halls of residence.
           </p>
         </div>
         <div className="flex flex-wrap items-center justify-between gap-3">

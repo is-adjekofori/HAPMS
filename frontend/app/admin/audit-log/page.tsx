@@ -52,7 +52,10 @@ function auditTone(entry: AuditLogEntry): Tone {
 // Dispute comments are embedded by the backend as `... — "comment text"`;
 // split them out so they render as a quoted callout, matching the audit
 // trail's presentation of BR-4.10 dispute visibility.
-function splitComment(description: string): { text: string; comment: string | null } {
+function splitComment(description: string): {
+  text: string;
+  comment: string | null;
+} {
   const match = description.match(/^([\s\S]*) — "([\s\S]*)"$/);
   if (match) return { text: match[1], comment: match[2] };
   return { text: description, comment: null };

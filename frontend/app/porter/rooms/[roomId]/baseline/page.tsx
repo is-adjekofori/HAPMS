@@ -4,13 +4,18 @@ import { useMemo, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 import { RoleGuard } from "@/components/RoleGuard";
-import { DashboardShell } from "@/components/DashboardShell";
+import { AppShell } from "@/components/AppShell";
 import { apiFetch, ApiError } from "@/lib/api";
 import { useApiResource } from "@/lib/useApiResource";
+import { Button } from "@/components/ui/button";
 
 type Condition = "good" | "fair" | "damaged";
 
-const CONDITIONS: Condition[] = ["good", "fair", "damaged"];
+const CONDITIONS: { value: Condition; label: string }[] = [
+  { value: "good", label: "Good" },
+  { value: "fair", label: "Fair" },
+  { value: "damaged", label: "Damaged" },
+];
 
 interface AssetTypeOption {
   asset_type_id: number;
@@ -116,110 +121,136 @@ function BaselineFormContent() {
 
   function renderRow(at: AssetTypeOption) {
     const state = items[at.asset_type_id];
+    const qty = quantityFor(at);
+    const cond = state?.condition ?? "good";
     return (
       <div
         key={at.asset_type_id}
-        className="grid grid-cols-[1fr_90px_120px] items-center gap-3 border-b border-zinc-100 py-2 dark:border-zinc-900"
+        className="flex flex-wrap items-center gap-4 border-b border-[#efe7db] px-4.5 py-3.5 last:border-0"
       >
-        <div>
-          <p className="text-sm text-black dark:text-zinc-50">
+        <div className="flex min-w-[140px] flex-1 flex-col gap-0.5">
+          <span className="text-[14.5px] font-semibold text-foreground">
             {at.display_name}
-          </p>
-          {at.notes && <p className="text-xs text-zinc-500">{at.notes}</p>}
+          </span>
+          {at.notes && (
+            <span className="text-xs text-muted-foreground">{at.notes}</span>
+          )}
         </div>
-        <input
-          type="number"
-          min={0}
-          aria-label={`${at.display_name} quantity`}
-          value={quantityFor(at)}
-          onChange={(e) =>
-            setQuantity(at.asset_type_id, Math.max(0, Number(e.target.value)))
-          }
-          className="w-full rounded-md border border-zinc-300 px-2 py-1 text-sm dark:border-zinc-700 dark:bg-zinc-900"
-        />
-        <select
-          aria-label={`${at.display_name} condition`}
-          value={state?.condition ?? "good"}
-          onChange={(e) =>
-            setCondition(at.asset_type_id, e.target.value as Condition)
-          }
-          className="w-full rounded-md border border-zinc-300 px-2 py-1 text-sm capitalize dark:border-zinc-700 dark:bg-zinc-900"
-        >
+        <div className="flex items-center overflow-hidden rounded-[9px] border border-[#ddd3c4] bg-secondary">
+          <button
+            type="button"
+            aria-label={`Decrease ${at.display_name} quantity`}
+            onClick={() => setQuantity(at.asset_type_id, Math.max(0, qty - 1))}
+            className="flex size-9 items-center justify-center text-lg text-primary hover:bg-accent"
+          >
+            −
+          </button>
+          <span className="min-w-8.5 text-center font-mono text-[15px] font-medium text-foreground">
+            {qty}
+          </span>
+          <button
+            type="button"
+            aria-label={`Increase ${at.display_name} quantity`}
+            onClick={() => setQuantity(at.asset_type_id, qty + 1)}
+            className="flex size-9 items-center justify-center text-lg text-primary hover:bg-accent"
+          >
+            +
+          </button>
+        </div>
+        <div className="flex overflow-hidden rounded-[9px] border border-[#ddd3c4] bg-secondary">
           {CONDITIONS.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
+            <button
+              key={c.value}
+              type="button"
+              aria-label={`${at.display_name} condition ${c.label}`}
+              onClick={() => setCondition(at.asset_type_id, c.value)}
+              className={`px-3 py-2 text-[12.5px] font-semibold transition-colors ${
+                cond === c.value
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-accent"
+              }`}
+            >
+              {c.label}
+            </button>
           ))}
-        </select>
+        </div>
       </div>
     );
   }
 
   return (
-    <DashboardShell title="Porter Dashboard">
-      <button
-        type="button"
-        onClick={() => router.push("/porter")}
-        className="mb-4 text-sm text-zinc-500 hover:text-black dark:hover:text-zinc-50"
-      >
-        ← Back to my rooms
-      </button>
-
-      <h2 className="mb-1 text-sm font-medium text-zinc-700 dark:text-zinc-300">
-        Record Room Baseline
-      </h2>
-      <p className="mb-5 text-xs text-zinc-500">
-        Only asset types valid for this room&apos;s hall are shown, pre-filled
-        with default quantities. Adjust quantity and condition as needed.
-      </p>
-
-      {loading && <p className="text-sm text-zinc-500">Loading…</p>}
-      {loadError && (
-        <p className="text-sm text-red-600 dark:text-red-400">{loadError}</p>
-      )}
-
-      {assetTypes && assetTypes.length > 0 && (
-        <form onSubmit={handleSubmit} className="max-w-xl">
-          <div className="grid grid-cols-[1fr_90px_120px] gap-3 pb-1 text-xs font-medium text-zinc-500">
-            <span>Asset</span>
-            <span>Qty</span>
-            <span>Condition</span>
-          </div>
-
-          {corner.length > 0 && (
-            <>
-              <p className="mt-2 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Corner items
-              </p>
-              {corner.map(renderRow)}
-            </>
-          )}
-
-          {shared.length > 0 && (
-            <>
-              <p className="mt-4 text-xs font-semibold uppercase tracking-wide text-zinc-400">
-                Shared items
-              </p>
-              {shared.map(renderRow)}
-            </>
-          )}
-
-          {formError && (
-            <p className="mt-4 text-sm text-red-600 dark:text-red-400">
-              {formError}
-            </p>
-          )}
-
-          <button
-            type="submit"
-            disabled={submitting}
-            className="mt-5 rounded-md bg-black px-4 py-1.5 text-sm font-medium text-white disabled:opacity-50 dark:bg-white dark:text-black"
+    <AppShell title="Record Baseline">
+      <div className="flex max-w-[840px] flex-col gap-5.5">
+        <button
+          type="button"
+          onClick={() => router.push("/porter")}
+          className="flex w-fit items-center gap-2 text-[13.5px] font-semibold text-primary hover:text-[#6d2a5f]"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="16"
+            height="16"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
           >
-            {submitting ? "Saving…" : "Save baseline"}
-          </button>
-        </form>
-      )}
-    </DashboardShell>
+            <path d="M19 12H5M11 6l-6 6 6 6" />
+          </svg>
+          Back to my rooms
+        </button>
+
+        {loading && <p className="text-sm text-muted-foreground">Loading…</p>}
+        {loadError && <p className="text-sm text-destructive">{loadError}</p>}
+
+        {assetTypes && assetTypes.length > 0 && (
+          <form onSubmit={handleSubmit} className="flex flex-col gap-5.5">
+            {corner.length > 0 && (
+              <div className="flex flex-col gap-3.5">
+                <span className="font-heading text-lg font-semibold text-foreground">
+                  Corner items
+                </span>
+                <div className="overflow-hidden rounded-[12px] border border-border bg-card">
+                  {corner.map(renderRow)}
+                </div>
+              </div>
+            )}
+
+            {shared.length > 0 && (
+              <div className="flex flex-col gap-3.5">
+                <span className="font-heading text-lg font-semibold text-foreground">
+                  Shared items
+                </span>
+                <div className="overflow-hidden rounded-[12px] border border-border bg-card">
+                  {shared.map(renderRow)}
+                </div>
+              </div>
+            )}
+
+            {formError && (
+              <p className="text-sm text-destructive">{formError}</p>
+            )}
+
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="w-fit gap-2 rounded-[9px] py-3"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                width="16"
+                height="16"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+              >
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+              {submitting ? "Saving…" : "Save baseline"}
+            </Button>
+          </form>
+        )}
+      </div>
+    </AppShell>
   );
 }
 

@@ -146,7 +146,11 @@ function CreateHallDialog({ onCreated }: { onCreated: () => void }) {
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={submitting} className="rounded-[9px]">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="rounded-[9px]"
+            >
               {submitting ? "Adding…" : "Add hall"}
             </Button>
           </DialogFooter>
@@ -217,7 +221,9 @@ function HallsPageContent() {
                     </TableCell>
                     <TableCell>
                       <StatusPill
-                        kind={hall.category === "Regular" ? "regular" : "special"}
+                        kind={
+                          hall.category === "Regular" ? "regular" : "special"
+                        }
                         label={hall.category}
                       />
                     </TableCell>

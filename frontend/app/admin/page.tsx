@@ -37,7 +37,10 @@ function DashboardContent() {
           label: "Flagged this session",
           value: summary.total_flagged_issues,
           sub: "Asset discrepancies to resolve",
-          valueClass: summary.total_flagged_issues > 0 ? "text-destructive" : "text-foreground",
+          valueClass:
+            summary.total_flagged_issues > 0
+              ? "text-destructive"
+              : "text-foreground",
         },
         {
           label: "Awaiting sign-off",
@@ -76,7 +79,9 @@ function DashboardContent() {
                 <div
                   key={s.label}
                   className={`flex flex-col gap-2.5 p-6 ${
-                    i > 0 ? "border-t border-border sm:border-t-0 sm:border-l" : ""
+                    i > 0
+                      ? "border-t border-border sm:border-t-0 sm:border-l"
+                      : ""
                   }`}
                 >
                   <span className="text-[11px] font-semibold tracking-[.13em] text-muted-foreground uppercase">

@@ -185,7 +185,11 @@ function CreateUserDialog({
             <DialogClose render={<Button type="button" variant="outline" />}>
               Cancel
             </DialogClose>
-            <Button type="submit" disabled={submitting} className="rounded-[9px]">
+            <Button
+              type="submit"
+              disabled={submitting}
+              className="rounded-[9px]"
+            >
               {submitting ? "Adding…" : "Add user"}
             </Button>
           </DialogFooter>
@@ -270,8 +274,8 @@ function UsersPageContent() {
                   Temporary password for {credential.email}
                 </span>
                 <span className="text-[13px] leading-[1.55] text-[#8a5a12]">
-                  Relay this to the user securely. It is displayed only once
-                  and cannot be retrieved again.
+                  Relay this to the user securely. It is displayed only once and
+                  cannot be retrieved again.
                 </span>
                 <div className="mt-0.5 flex items-center gap-2.5">
                   <code className="rounded-[7px] border border-border bg-white px-3.5 py-2 font-mono text-sm font-medium tracking-[.02em] text-foreground">
@@ -361,7 +365,9 @@ function UsersPageContent() {
                       />
                     </TableCell>
                     <TableCell>
-                      <StatusPill kind={user.is_active ? "active" : "inactive"} />
+                      <StatusPill
+                        kind={user.is_active ? "active" : "inactive"}
+                      />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">

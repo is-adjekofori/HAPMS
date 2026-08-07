@@ -101,7 +101,9 @@ function BaselinesTable() {
                 {new Date(row.created_at).toLocaleString()}
               </TableCell>
               <TableCell>
-                <StatusPill kind={row.shared_confirmed ? "confirmed" : "pendingSignoff"} />
+                <StatusPill
+                  kind={row.shared_confirmed ? "confirmed" : "pendingSignoff"}
+                />
               </TableCell>
             </TableRow>
           ))}
@@ -186,7 +188,9 @@ function ReportsContent() {
   const [tab, setTab] = useState<"baselines" | "verifications">("baselines");
   const tabClass = (active: boolean) =>
     `flex items-center gap-1.5 px-4.5 py-3 text-sm font-semibold border-b-2 -mb-px transition-colors ${
-      active ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+      active
+        ? "border-primary text-primary"
+        : "border-transparent text-muted-foreground"
     }`;
 
   return (

@@ -32,7 +32,10 @@ const ICONS = {
 function navDef(role: UserRole): NavGroup[] {
   if (role === "admin") {
     return [
-      { label: "Overview", items: [{ href: "/admin", label: "Dashboard", d: ICONS.dashboard }] },
+      {
+        label: "Overview",
+        items: [{ href: "/admin", label: "Dashboard", d: ICONS.dashboard }],
+      },
       {
         label: "Configure",
         items: [
@@ -57,7 +60,9 @@ function navDef(role: UserRole): NavGroup[] {
     ];
   }
   if (role === "porter") {
-    return [{ items: [{ href: "/porter", label: "My rooms", d: ICONS.rooms }] }];
+    return [
+      { items: [{ href: "/porter", label: "My rooms", d: ICONS.rooms }] },
+    ];
   }
   return [
     {

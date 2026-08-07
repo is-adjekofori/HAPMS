@@ -46,8 +46,8 @@ export default function Home() {
         <p className="max-w-[52ch] text-[16px] leading-[1.75] text-sidebar-foreground/70">
           One verified record of every room, every asset, and every session
           across the University of Benin halls of residence — from the
-          porter&apos;s first inventory to the student&apos;s sign-off and
-          the end-of-session audit.
+          porter&apos;s first inventory to the student&apos;s sign-off and the
+          end-of-session audit.
         </p>
         <div className="mt-1.5 flex flex-wrap gap-6">
           {STATS.map((s) => (
