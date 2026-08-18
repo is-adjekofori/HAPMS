@@ -1,7 +1,5 @@
 "use client";
 
-import { Building2, DoorOpen } from "lucide-react";
-
 import { RoleGuard } from "@/components/RoleGuard";
 import { AppShell } from "@/components/AppShell";
 import { useApiResource } from "@/lib/useApiResource";
@@ -25,29 +23,36 @@ interface Room {
   created_at: string;
 }
 
+// Short, human-readable asset profile per hall_type (TECHNICAL_MVP.md §9.2)
+// — informational only, not used for any logic.
+const HALL_TYPE_BLURB: Record<string, string> = {
+  regular: "4 bunk beds, 1 fan, cupboards shared 2-to-1",
+  tetfund_danjuma: "2 bunk beds, 4 mattresses, window blinds",
+  hall_6: "2 bunk beds, individual tables and chairs",
+  hall_7: "Single beds only, no bunks",
+};
+
 function HallCard({ hall, rooms }: { hall: Hall; rooms: Room[] }) {
   const perRoomCapacity = rooms[0]?.capacity;
 
   return (
-    <div className="flex flex-col gap-4 rounded-[13px] border border-border bg-card p-5">
+    <div className="flex flex-col gap-3.5 rounded-[13px] border border-border bg-card p-5">
       <div className="flex items-start justify-between gap-3">
-        <div className="flex items-center gap-3">
-          <div className="flex size-10 shrink-0 items-center justify-center rounded-[10px] bg-secondary text-foreground">
-            <Building2 className="size-5" />
-          </div>
-          <span className="font-heading text-lg font-semibold text-foreground">
-            {hall.name}
-          </span>
-        </div>
+        <span className="font-heading text-lg font-semibold text-foreground">
+          {hall.name}
+        </span>
         <StatusPill
           kind={hall.category === "Regular" ? "regular" : "special"}
           label={hall.category}
         />
       </div>
 
+      <p className="text-[13px] leading-[1.5] text-muted-foreground">
+        {HALL_TYPE_BLURB[hall.hall_type] ?? "Asset profile not documented"}
+      </p>
+
       <div className="flex items-center gap-4 border-t border-[#ded3c2] pt-3.5 font-mono text-[12.5px] text-muted-foreground">
-        <span className="flex items-center gap-1.5">
-          <DoorOpen className="size-3.5" />
+        <span>
           {rooms.length} room{rooms.length === 1 ? "" : "s"}
         </span>
         {perRoomCapacity !== undefined && (
