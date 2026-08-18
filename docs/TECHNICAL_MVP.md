@@ -407,8 +407,7 @@ All endpoints are prefixed with `/api`. All (except `/auth/login`) require a val
 | POST /admin/users | Admin | full_name, email, role | user record |
 | GET /admin/users | Admin | — | list of users |
 | PATCH /admin/users/{id}/deactivate | Admin | — | updated user |
-| POST /admin/halls | Admin | name, hall_type | hall record |
-| GET /admin/halls | Admin | — | list of halls |
+| GET /admin/halls | Admin | — | list of halls (fixed set, seeded by `app.seed.halls` — no create endpoint) |
 | POST /admin/rooms | Admin | hall_id, room_number, corner_label? | room record |
 | GET /admin/rooms | Admin | — | list of rooms |
 | POST /admin/porter-assignments | Admin | porter_id, room_id | assignment record |

@@ -97,8 +97,8 @@ npm run format:check  # check only
 
 ```bash
 cd backend
-uv run python -m app.seed.run        # structural reference data (asset_types, hall_asset_rules) — always run this first
-uv run python -m app.seed.run_demo   # optional: a full demo/UAT scenario (halls, rooms, accounts, an active session,
+uv run python -m app.seed.run        # structural reference data (asset_types, hall_asset_rules, the fixed 11 halls) — always run this first
+uv run python -m app.seed.run_demo   # optional: a full demo/UAT scenario (rooms, accounts, an active session,
                                       # a clean baseline, a disputed one, a flagged one, an unrecorded one)
 ```
 

@@ -22,7 +22,7 @@ Idempotent by convention, not by upsert: if the demo hall already exists,
 this is a no-op (safe to re-run without creating duplicates), matching T1.2's
 "safe to re-run" bar for a stateful scenario rather than a lookup table.
 
-Usage: uv run python -m app.seed.run_demo
+Usage: `uv run python -m app.seed.run_demo`
 """
 
 import datetime as dt
@@ -31,7 +31,7 @@ from sqlalchemy.orm import Session
 
 from app.core.security import hash_password
 from app.models.baseline_item import AssetCondition, BaselineItem
-from app.models.hall import Hall, HallType
+from app.models.hall import Hall
 from app.models.porter_room_assignment import PorterRoomAssignment
 from app.models.room import Room
 from app.models.room_inventory_baseline import RoomInventoryBaseline
@@ -40,13 +40,17 @@ from app.models.session_end_verification import SessionEndVerification
 from app.models.sign_off import SignOff, SignOffStatus
 from app.models.student_room_allocation import StudentRoomAllocation
 from app.models.user import User, UserRole
-from app.models.verification_item import VerificationCondition, VerificationFlag, VerificationItem
+from app.models.verification_item import (
+    VerificationCondition,
+    VerificationFlag,
+    VerificationItem,
+)
 from app.services import audit
 from app.services.asset_rules import room_capacity
 from app.services.baselines import valid_asset_rules_for_room
 from app.services.verification import compute_flag
 
-DEMO_HALL_NAME = "Demo Hall — Regular"
+DEMO_MARKER_EMAIL = "demo-admin@example.com"
 DEMO_PASSWORD = "DemoPass123!"
 
 
@@ -65,7 +69,9 @@ def _make_user(db: Session, full_name: str, email: str, role: UserRole) -> User:
 def _record_baseline(
     db: Session, room: Room, session: HostelSession, porter: User
 ) -> RoomInventoryBaseline:
-    baseline = RoomInventoryBaseline(room_id=room.id, session_id=session.id, created_by=porter.id)
+    baseline = RoomInventoryBaseline(
+        room_id=room.id, session_id=session.id, created_by=porter.id
+    )
     db.add(baseline)
     db.flush()
     for rule, asset_type in valid_asset_rules_for_room(db, room):
@@ -90,36 +96,57 @@ def _record_baseline(
 
 
 def seed_demo_data(db: Session) -> None:
-    if db.query(Hall).filter(Hall.name == DEMO_HALL_NAME).first() is not None:
+    if db.query(User).filter(User.email == DEMO_MARKER_EMAIL).first() is not None:
         print("Demo data already present - skipping (safe to re-run).")
         return
 
-    admin = _make_user(db, "Demo Administrator", "demo-admin@example.com", UserRole.ADMIN)
-    porter_1 = _make_user(db, "Demo Porter One", "demo-porter1@example.com", UserRole.PORTER)
-    porter_2 = _make_user(db, "Demo Porter Two", "demo-porter2@example.com", UserRole.PORTER)
-    student_1 = _make_user(db, "Demo Student One", "demo-student1@example.com", UserRole.STUDENT)
-    student_2 = _make_user(db, "Demo Student Two", "demo-student2@example.com", UserRole.STUDENT)
-    student_3 = _make_user(db, "Demo Student Three", "demo-student3@example.com", UserRole.STUDENT)
-    student_4 = _make_user(db, "Demo Student Four", "demo-student4@example.com", UserRole.STUDENT)
+    admin = _make_user(
+        db, "Demo Administrator", "demo-admin@example.com", UserRole.ADMIN
+    )
+    porter_1 = _make_user(
+        db, "Demo Porter One", "demo-porter1@example.com", UserRole.PORTER
+    )
+    porter_2 = _make_user(
+        db, "Demo Porter Two", "demo-porter2@example.com", UserRole.PORTER
+    )
+    student_1 = _make_user(
+        db, "Demo Student One", "demo-student1@example.com", UserRole.STUDENT
+    )
+    student_2 = _make_user(
+        db, "Demo Student Two", "demo-student2@example.com", UserRole.STUDENT
+    )
+    student_3 = _make_user(
+        db, "Demo Student Three", "demo-student3@example.com", UserRole.STUDENT
+    )
+    student_4 = _make_user(
+        db, "Demo Student Four", "demo-student4@example.com", UserRole.STUDENT
+    )
 
-    hall_regular = Hall(name=DEMO_HALL_NAME, hall_type=HallType.REGULAR)
-    hall_6 = Hall(name="Demo Hall — Hall 6", hall_type=HallType.HALL_6)
-    hall_7 = Hall(name="Demo Hall — Hall 7", hall_type=HallType.HALL_7)
-    db.add_all([hall_regular, hall_6, hall_7])
-    db.flush()
+    # Halls are the fixed, real set seeded by app.seed.halls (run before this
+    # in both app.seed.run_demo and the container entrypoint) - demo data
+    # populates rooms in them rather than creating its own halls.
+    hall_regular = db.query(Hall).filter(Hall.name == "Hall 1").one()
+    hall_6 = db.query(Hall).filter(Hall.name == "Hall 6").one()
+    hall_7 = db.query(Hall).filter(Hall.name == "Hall 7").one()
 
     room_101 = Room(
-        hall_id=hall_regular.id, room_number="101", capacity=room_capacity(HallType.REGULAR)
+        hall_id=hall_regular.id,
+        room_number="101",
+        capacity=room_capacity(hall_regular.hall_type),
     )
     room_102 = Room(
-        hall_id=hall_regular.id, room_number="102", capacity=room_capacity(HallType.REGULAR)
+        hall_id=hall_regular.id,
+        room_number="102",
+        capacity=room_capacity(hall_regular.hall_type),
     )
-    room_601 = Room(hall_id=hall_6.id, room_number="601", capacity=room_capacity(HallType.HALL_6))
+    room_601 = Room(
+        hall_id=hall_6.id, room_number="601", capacity=room_capacity(hall_6.hall_type)
+    )
     room_701a = Room(
         hall_id=hall_7.id,
         room_number="701",
         corner_label="A",
-        capacity=room_capacity(HallType.HALL_7),
+        capacity=room_capacity(hall_7.hall_type),
     )
     db.add_all([room_101, room_102, room_601, room_701a])
     db.flush()
@@ -130,7 +157,9 @@ def seed_demo_data(db: Session) -> None:
     db.flush()
 
     session = HostelSession(
-        name="Demo Session", status=SessionStatus.ACTIVE, started_at=dt.datetime.now(dt.UTC)
+        name="Demo Session",
+        status=SessionStatus.ACTIVE,
+        started_at=dt.datetime.now(dt.UTC),
     )
     db.add(session)
     db.flush()
@@ -204,7 +233,9 @@ def seed_demo_data(db: Session) -> None:
         entity_id=corner_signoff.id,
         description=f"[Demo] Confirmed sign-off (corner) for baseline {baseline_102.id}",
     )
-    dispute_comment = "The overhead fan makes a loud rattling noise and one window blind is torn."
+    dispute_comment = (
+        "The overhead fan makes a loud rattling noise and one window blind is torn."
+    )
     shared_signoff = SignOff(
         baseline_id=baseline_102.id,
         student_id=student_2.id,
@@ -261,7 +292,9 @@ def seed_demo_data(db: Session) -> None:
     db.commit()
     print("Demo data seeded.")
     print(f"  Admin:    demo-admin@example.com / {DEMO_PASSWORD}")
-    print(f"  Porter 1: demo-porter1@example.com / {DEMO_PASSWORD} (rooms 101, 102, 601)")
+    print(
+        f"  Porter 1: demo-porter1@example.com / {DEMO_PASSWORD} (rooms 101, 102, 601)"
+    )
     print(f"  Porter 2: demo-porter2@example.com / {DEMO_PASSWORD} (room 701 corner A)")
     print(f"  Students: demo-student1..4@example.com / {DEMO_PASSWORD}")
 
@@ -270,14 +303,19 @@ def _verify_baseline(
     db: Session, baseline: RoomInventoryBaseline, porter: User, *, discrepancy: bool
 ) -> None:
     items = db.query(BaselineItem).filter(BaselineItem.baseline_id == baseline.id).all()
-    verification = SessionEndVerification(baseline_id=baseline.id, verified_by=porter.id)
+    verification = SessionEndVerification(
+        baseline_id=baseline.id, verified_by=porter.id
+    )
     db.add(verification)
     db.flush()
 
     flagged_count = 0
     for index, item in enumerate(items):
         if discrepancy and index == 0:
-            current_quantity, current_condition = item.quantity, VerificationCondition.MISSING
+            current_quantity, current_condition = (
+                item.quantity,
+                VerificationCondition.MISSING,
+            )
         else:
             current_quantity = item.quantity
             current_condition = VerificationCondition(item.condition.value)

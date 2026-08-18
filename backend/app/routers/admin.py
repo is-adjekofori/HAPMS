@@ -17,7 +17,7 @@ from app.models.session_end_verification import SessionEndVerification
 from app.models.sign_off import SignOff
 from app.models.user import User, UserRole
 from app.models.verification_item import VerificationFlag, VerificationItem
-from app.schemas.hall import HallCreate, HallResponse
+from app.schemas.hall import HallResponse
 from app.schemas.porter_assignment import PorterAssignmentCreate, PorterAssignmentResponse
 from app.schemas.reports import (
     AuditLogEntry,
@@ -44,35 +44,6 @@ def _to_hall_response(hall: Hall) -> HallResponse:
         category=hall_category(hall.hall_type),
         created_at=hall.created_at,
     )
-
-
-@router.post("/halls", response_model=HallResponse)
-def create_hall(
-    payload: HallCreate,
-    db: Session = Depends(get_db),
-    admin: User = Depends(require_role(UserRole.ADMIN)),
-) -> HallResponse:
-    hall = Hall(name=payload.name, hall_type=payload.hall_type)
-    db.add(hall)
-    try:
-        db.flush()
-    except IntegrityError as exc:
-        db.rollback()
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail="A hall with this name already exists"
-        ) from exc
-
-    audit.record(
-        db,
-        user_id=admin.id,
-        action="CREATE_HALL",
-        entity_type="hall",
-        entity_id=hall.id,
-        description=f"Created hall {hall.name} ({hall.hall_type.value})",
-    )
-    db.commit()
-    db.refresh(hall)
-    return _to_hall_response(hall)
 
 
 @router.get("/halls", response_model=list[HallResponse])
