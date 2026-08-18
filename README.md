@@ -142,18 +142,18 @@ which is convenient locally but not something you'd want unconditionally in prod
 
 **Backend** (`backend/.env` — see `backend/.env.example`):
 
-| Variable | Production guidance |
-| --- | --- |
-| `ENVIRONMENT` | Set to `production`. |
-| `DATABASE_URL` | Point at the production MySQL instance. Use a dedicated app user (not `root`) scoped to the `hapms` schema. |
-| `JWT_SECRET_KEY` | **Generate a fresh value per environment** — never reuse the committed dev placeholder. `python -c "import secrets; print(secrets.token_hex(32))"`. Treat it as a secret (host-provided secret manager / env var injection, not committed to git). |
-| `JWT_EXPIRY_MINUTES` | Keep as-is (480 min) unless there's a specific reason to shorten it. |
-| `CORS_ORIGINS` | Set to the deployed frontend's exact origin(s), e.g. `["https://hapms.example.edu"]`. Never use `["*"]` alongside `allow_credentials=True` (the app sends Bearer tokens, not cookies, but a wildcard still defeats the point of the allow-list). |
+| Variable             | Production guidance                                                                                                                                                                                                                                |
+| -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ENVIRONMENT`        | Set to `production`.                                                                                                                                                                                                                               |
+| `DATABASE_URL`       | Point at the production MySQL instance. Use a dedicated app user (not `root`) scoped to the `hapms` schema.                                                                                                                                        |
+| `JWT_SECRET_KEY`     | **Generate a fresh value per environment** — never reuse the committed dev placeholder. `python -c "import secrets; print(secrets.token_hex(32))"`. Treat it as a secret (host-provided secret manager / env var injection, not committed to git). |
+| `JWT_EXPIRY_MINUTES` | Keep as-is (480 min) unless there's a specific reason to shorten it.                                                                                                                                                                               |
+| `CORS_ORIGINS`       | Set to the deployed frontend's exact origin(s), e.g. `["https://hapms.example.edu"]`. Never use `["*"]` alongside `allow_credentials=True` (the app sends Bearer tokens, not cookies, but a wildcard still defeats the point of the allow-list).   |
 
 **Frontend** (`frontend/.env.local` — see `frontend/.env.example`):
 
-| Variable | Production guidance |
-| --- | --- |
+| Variable              | Production guidance                                                                                                                                                                                                                              |
+| --------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | `NEXT_PUBLIC_API_URL` | The deployed backend's public URL plus `/api`, e.g. `https://api.hapms.example.edu/api`. This is baked in at build time (`NEXT_PUBLIC_*` vars are exposed to the browser bundle), so it must be set before `npm run build`, not just at runtime. |
 
 **Root** (`.env` — see `.env.example`): only used by `docker-compose.yml` for local MySQL provisioning;
