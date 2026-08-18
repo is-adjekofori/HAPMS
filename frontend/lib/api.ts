@@ -58,6 +58,10 @@ export async function apiFetch<T>(
 
   const requestHeaders = new Headers(headers);
   requestHeaders.set("Content-Type", "application/json");
+  // Bypasses ngrok's free-tier "you are about to visit" interstitial, which
+  // otherwise intercepts browser-looking requests and returns an HTML page
+  // with no CORS headers, breaking every call from the deployed frontend.
+  requestHeaders.set("ngrok-skip-browser-warning", "true");
 
   if (auth) {
     const token = getToken();
