@@ -152,7 +152,7 @@ function CreateRoomDialog({
               />
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="corner_label">Corner label (Hall 7 only)</Label>
+              <Label htmlFor="corner_label">Corner label</Label>
               <Input
                 id="corner_label"
                 value={cornerLabel}

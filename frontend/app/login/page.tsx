@@ -9,6 +9,16 @@ import { setToken, dashboardPathForRole, type UserRole } from "@/lib/auth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { TypewriterText } from "@/components/TypewriterText";
+
+const FOOTNOTE_TEXTS = [
+  "No self-registration. Password resets are handled by the hostel office.",
+  "The University of Benin was founded in 1970 and remains one of Nigeria's foremost citadels of learning.",
+  "“Knowledge for Service” — the motto of the University of Benin.",
+  "“Education is the most powerful weapon which you can use to change the world.” — Nelson Mandela",
+  "Every mattress, bunk bed, and cupboard — tracked from move-in to move-out.",
+  "UNIBEN's Ugbowo and Ekehuan campuses house thousands of resident students each session.",
+];
 
 interface LoginResponse {
   access_token: string;
@@ -70,7 +80,7 @@ export default function LoginPage() {
             Accounted&nbsp;for.
           </h1>
           <p className="max-w-[34ch] text-[15px] leading-[1.7] text-sidebar-foreground/70">
-            The Hostel Asset &amp; Property Management System — one verified
+            The Hostel Asset &amp; Property Management System. One verified
             record of every room, every session, across the halls of residence.
           </p>
         </div>
@@ -189,10 +199,12 @@ export default function LoginPage() {
               <path d="M5 12h14M13 6l6 6-6 6" />
             </svg>
           </Button>
-          <p className="text-center text-[12.5px] leading-[1.6] text-muted-foreground">
-            No self-registration. Password resets are handled by the hostel
-            office.
-          </p>
+          <div className="flex min-h-[3.2em] items-start justify-center">
+            <TypewriterText
+              texts={FOOTNOTE_TEXTS}
+              className="text-center text-[12.5px] leading-[1.6] text-muted-foreground"
+            />
+          </div>
         </form>
       </div>
     </div>
