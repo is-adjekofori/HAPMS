@@ -26,10 +26,12 @@ interface AssetTypeOption {
   notes: string | null;
 }
 
-interface ItemState {
-  quantity: number;
-  condition: Condition;
-}
+// Per-condition quantity buckets for one asset type - a room can hold
+// several units of one item split across conditions (e.g. 2 good bunk beds
+// + 2 damaged), so quantity and condition are no longer a single pair.
+type Buckets = Record<Condition, number>;
+
+const EMPTY_BUCKETS: Buckets = { good: 0, fair: 0, damaged: 0 };
 
 function BaselineFormContent() {
   const params = useParams<{ roomId: string }>();
@@ -42,18 +44,23 @@ function BaselineFormContent() {
     error: loadError,
   } = useApiResource<AssetTypeOption[]>(`/porter/rooms/${roomId}/asset-types`);
 
-  // Per-asset-type overrides, keyed by asset_type_id. Entries are created
-  // lazily on first edit; anything untouched falls back to the asset type's
-  // default_quantity / "good" at render and submit time. This avoids seeding
-  // state in an effect (and the resulting lint warning).
-  const [items, setItems] = useState<Record<number, ItemState>>({});
+  // Per-asset-type condition buckets, keyed by asset_type_id. Entries are
+  // created lazily on first edit; anything untouched falls back to the asset
+  // type's default_quantity (all "good") at render and submit time. This
+  // avoids seeding state in an effect (and the resulting lint warning).
+  const [items, setItems] = useState<Record<number, Buckets>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  // The seeded (effective) quantity for an asset type: an edited value if the
-  // Porter has touched it, otherwise the server default.
-  function quantityFor(at: AssetTypeOption): number {
-    return items[at.asset_type_id]?.quantity ?? at.default_quantity;
+  // The seeded (effective) buckets for an asset type: edited values if the
+  // Porter has touched it, otherwise the server default (all "good").
+  function bucketsFor(at: AssetTypeOption): Buckets {
+    return items[at.asset_type_id] ?? { ...EMPTY_BUCKETS, good: at.default_quantity };
+  }
+
+  function totalFor(at: AssetTypeOption): number {
+    const buckets = bucketsFor(at);
+    return buckets.good + buckets.fair + buckets.damaged;
   }
 
   // T4.2 returns asset types ordered; keep table before chair so auto-match
@@ -67,26 +74,21 @@ function BaselineFormContent() {
     [assetTypes],
   );
 
-  function setQuantity(assetTypeId: number, value: number) {
+  function setBucket(assetTypeId: number, condition: Condition, value: number) {
     setItems((prev) => {
-      const next = {
-        ...prev,
-        [assetTypeId]: { ...prev[assetTypeId], quantity: value },
-      };
-      // §7.2: chair count defaults to table count. Applied when the table
-      // quantity changes; the Porter can still override the chair after.
+      const current = prev[assetTypeId] ?? EMPTY_BUCKETS;
+      const updated = { ...current, [condition]: Math.max(0, value) };
+      const next = { ...prev, [assetTypeId]: updated };
+      // §7.2: chair count defaults to table's total count. Applied when the
+      // table's total changes; the Porter can still override the chair
+      // after. Mirrors the total into the chair's "good" bucket and clears
+      // any fair/damaged split the Porter had set for it.
       if (assetTypeId === tableId && chairId !== null) {
-        next[chairId] = { ...next[chairId], quantity: value };
+        const total = updated.good + updated.fair + updated.damaged;
+        next[chairId] = { good: total, fair: 0, damaged: 0 };
       }
       return next;
     });
-  }
-
-  function setCondition(assetTypeId: number, value: Condition) {
-    setItems((prev) => ({
-      ...prev,
-      [assetTypeId]: { ...prev[assetTypeId], condition: value },
-    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -98,11 +100,14 @@ function BaselineFormContent() {
       await apiFetch(`/porter/rooms/${roomId}/baseline`, {
         method: "POST",
         body: {
-          items: assetTypes.map((at) => ({
-            asset_type_id: at.asset_type_id,
-            quantity: quantityFor(at),
-            condition: items[at.asset_type_id]?.condition ?? "good",
-          })),
+          items: assetTypes.flatMap((at) => {
+            const buckets = bucketsFor(at);
+            return CONDITIONS.map((c) => ({
+              asset_type_id: at.asset_type_id,
+              quantity: buckets[c.value],
+              condition: c.value,
+            })).filter((entry) => entry.quantity > 0);
+          }),
         },
       });
       router.push("/porter");
@@ -120,9 +125,8 @@ function BaselineFormContent() {
     assetTypes?.filter((at) => at.sign_off_group === "shared") ?? [];
 
   function renderRow(at: AssetTypeOption) {
-    const state = items[at.asset_type_id];
-    const qty = quantityFor(at);
-    const cond = state?.condition ?? "good";
+    const buckets = bucketsFor(at);
+    const total = totalFor(at);
     return (
       <div
         key={at.asset_type_id}
@@ -135,43 +139,45 @@ function BaselineFormContent() {
           {at.notes && (
             <span className="text-xs text-muted-foreground">{at.notes}</span>
           )}
-        </div>
-        <div className="flex items-center overflow-hidden rounded-[9px] border border-[#ddd3c4] bg-secondary">
-          <button
-            type="button"
-            aria-label={`Decrease ${at.display_name} quantity`}
-            onClick={() => setQuantity(at.asset_type_id, Math.max(0, qty - 1))}
-            className="flex size-9 items-center justify-center text-lg text-primary hover:bg-accent"
-          >
-            −
-          </button>
-          <span className="min-w-8.5 text-center font-mono text-[15px] font-medium text-foreground">
-            {qty}
+          <span className="text-xs font-medium text-muted-foreground">
+            Total: {total}
           </span>
-          <button
-            type="button"
-            aria-label={`Increase ${at.display_name} quantity`}
-            onClick={() => setQuantity(at.asset_type_id, qty + 1)}
-            className="flex size-9 items-center justify-center text-lg text-primary hover:bg-accent"
-          >
-            +
-          </button>
         </div>
-        <div className="flex overflow-hidden rounded-[9px] border border-[#ddd3c4] bg-secondary">
+        <div className="flex flex-wrap gap-2.5">
           {CONDITIONS.map((c) => (
-            <button
+            <div
               key={c.value}
-              type="button"
-              aria-label={`${at.display_name} condition ${c.label}`}
-              onClick={() => setCondition(at.asset_type_id, c.value)}
-              className={`px-3 py-2 text-[12.5px] font-semibold transition-colors ${
-                cond === c.value
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-accent"
-              }`}
+              className="flex flex-col items-center gap-1"
             >
-              {c.label}
-            </button>
+              <span className="text-[11px] font-semibold tracking-[.04em] text-muted-foreground uppercase">
+                {c.label}
+              </span>
+              <div className="flex items-center overflow-hidden rounded-[9px] border border-[#ddd3c4] bg-secondary">
+                <button
+                  type="button"
+                  aria-label={`Decrease ${at.display_name} ${c.label} quantity`}
+                  onClick={() =>
+                    setBucket(at.asset_type_id, c.value, buckets[c.value] - 1)
+                  }
+                  className="flex size-8 items-center justify-center text-base text-primary hover:bg-accent"
+                >
+                  −
+                </button>
+                <span className="min-w-7 text-center font-mono text-sm font-medium text-foreground">
+                  {buckets[c.value]}
+                </span>
+                <button
+                  type="button"
+                  aria-label={`Increase ${at.display_name} ${c.label} quantity`}
+                  onClick={() =>
+                    setBucket(at.asset_type_id, c.value, buckets[c.value] + 1)
+                  }
+                  className="flex size-8 items-center justify-center text-base text-primary hover:bg-accent"
+                >
+                  +
+                </button>
+              </div>
+            </div>
           ))}
         </div>
       </div>

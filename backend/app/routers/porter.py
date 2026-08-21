@@ -184,21 +184,34 @@ def create_baseline(
         )
 
     # Only asset types valid for this room's hall may appear (§7.1). Build the
-    # lookup once and validate every submitted item against it.
+    # lookup once and validate every submitted item against it. An asset type
+    # may appear more than once - once per condition bucket (e.g. 2 good bunk
+    # beds + 2 damaged) - so duplicates are only rejected within the same
+    # (asset_type_id, condition) pair.
     valid = {asset_type.id: asset_type for _, asset_type in valid_asset_rules_for_room(db, room)}
-    seen: set[int] = set()
+    seen: set[tuple[int, str]] = set()
     for item in payload.items:
         if item.asset_type_id not in valid:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Asset type {item.asset_type_id} is not valid for this room's hall",
             )
-        if item.asset_type_id in seen:
+        key = (item.asset_type_id, item.condition)
+        if key in seen:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Asset type {item.asset_type_id} is listed more than once",
+                detail=(
+                    f"Asset type {item.asset_type_id} condition '{item.condition}' "
+                    "is listed more than once"
+                ),
             )
-        seen.add(item.asset_type_id)
+        seen.add(key)
+
+    if all(item.quantity == 0 for item in payload.items):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one item must have a quantity greater than zero",
+        )
 
     # §7.9 / BR-7.4: one open baseline per room per session. The UNIQUE
     # (room_id, session_id) constraint is the backstop; this pre-check turns
@@ -232,7 +245,12 @@ def create_baseline(
             detail="This room already has an open baseline for the current session",
         ) from exc
 
+    created_count = 0
     for item in payload.items:
+        # A zero-quantity bucket (e.g. "0 damaged") carries no information -
+        # skip it rather than persisting an empty row.
+        if item.quantity == 0:
+            continue
         db.add(
             BaselineItem(
                 baseline_id=baseline.id,
@@ -241,6 +259,7 @@ def create_baseline(
                 condition=item.condition,
             )
         )
+        created_count += 1
     db.flush()
 
     audit.record(
@@ -251,7 +270,7 @@ def create_baseline(
         entity_id=baseline.id,
         description=(
             f"Recorded baseline for room {room.id} "
-            f"({len(payload.items)} items) in session {active_session.id}"
+            f"({created_count} items) in session {active_session.id}"
         ),
     )
     db.commit()

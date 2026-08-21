@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import { ProfileMenu } from "@/components/ProfileMenu";
 import { clearToken, getCurrentAuth, type UserRole } from "@/lib/auth";
 
 interface NavItem {
@@ -26,7 +27,6 @@ const ICONS = {
   reports: "M4 20V4M4 20h16M8 16v-4M12 16V8M16 16v-6",
   auditLog: "M4 6h16M4 12h16M4 18h9M17 17l2 2 3-3",
   signOut: "M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9",
-  user: "M20 21a8 8 0 1 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z",
 };
 
 function navDef(role: UserRole): NavGroup[] {
@@ -185,9 +185,7 @@ export function AppShell({ title, children }: AppShellProps) {
               {title}
             </h1>
           </div>
-          <div className="flex size-8.5 shrink-0 items-center justify-center rounded-full bg-primary text-primary-foreground">
-            <Icon d={ICONS.user} className="size-4.5" />
-          </div>
+          <ProfileMenu />
         </header>
 
         <main className="flex flex-1 flex-col gap-6 p-4.5 pb-8 md:p-8">

@@ -14,7 +14,10 @@ class AssetCondition(enum.StrEnum):
 
 class BaselineItem(Base):
     __tablename__ = "baseline_items"
-    __table_args__ = (UniqueConstraint("baseline_id", "asset_type_id"),)
+    # A room can hold several units of one asset type split across
+    # conditions (e.g. 2 good bunk beds + 2 damaged) - one row per
+    # (asset_type, condition) bucket rather than one row per asset type.
+    __table_args__ = (UniqueConstraint("baseline_id", "asset_type_id", "condition"),)
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     baseline_id: Mapped[int] = mapped_column(

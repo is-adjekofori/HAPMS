@@ -101,25 +101,25 @@ def seed_demo_data(db: Session) -> None:
         return
 
     admin = _make_user(
-        db, "Demo Administrator", "demo-admin@example.com", UserRole.ADMIN
+        db, "Adaeze Chukwuemeka", "demo-admin@example.com", UserRole.ADMIN
     )
     porter_1 = _make_user(
-        db, "Demo Porter One", "demo-porter1@example.com", UserRole.PORTER
+        db, "Musa Abubakar", "demo-porter1@example.com", UserRole.PORTER
     )
     porter_2 = _make_user(
-        db, "Demo Porter Two", "demo-porter2@example.com", UserRole.PORTER
+        db, "Tunde Bakare", "demo-porter2@example.com", UserRole.PORTER
     )
     student_1 = _make_user(
-        db, "Demo Student One", "demo-student1@example.com", UserRole.STUDENT
+        db, "Chidinma Okafor", "demo-student1@example.com", UserRole.STUDENT
     )
     student_2 = _make_user(
-        db, "Demo Student Two", "demo-student2@example.com", UserRole.STUDENT
+        db, "Fatima Bello", "demo-student2@example.com", UserRole.STUDENT
     )
     student_3 = _make_user(
-        db, "Demo Student Three", "demo-student3@example.com", UserRole.STUDENT
+        db, "Oluwaseun Adebayo", "demo-student3@example.com", UserRole.STUDENT
     )
     student_4 = _make_user(
-        db, "Demo Student Four", "demo-student4@example.com", UserRole.STUDENT
+        db, "Ifeoma Nwosu", "demo-student4@example.com", UserRole.STUDENT
     )
 
     # Halls are the fixed, real set seeded by app.seed.halls (run before this

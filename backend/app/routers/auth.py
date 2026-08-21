@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
-from app.core.deps import require_role
+from app.core.deps import get_current_user, require_role
 from app.core.security import (
     create_access_token,
     generate_temporary_password,
@@ -11,6 +11,7 @@ from app.core.security import (
 )
 from app.models.user import User, UserRole
 from app.schemas.auth import LoginRequest, LoginResponse, ResetPasswordResponse
+from app.schemas.user import UserResponse
 from app.services import audit
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -31,6 +32,11 @@ def login(payload: LoginRequest, db: Session = Depends(get_db)) -> LoginResponse
 
     token = create_access_token(user_id=user.id, role=user.role.value)
     return LoginResponse(access_token=token, role=user.role, full_name=user.full_name)
+
+
+@router.get("/me", response_model=UserResponse)
+def get_me(user: User = Depends(get_current_user)) -> UserResponse:
+    return UserResponse.model_validate(user, from_attributes=True)
 
 
 @router.post("/reset-password/{user_id}", response_model=ResetPasswordResponse)
